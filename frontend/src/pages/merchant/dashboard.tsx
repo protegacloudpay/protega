@@ -132,7 +132,7 @@ export default function MerchantDashboard() {
           )}
 
           {/* Stats and Quick Actions */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
             <div className="card bg-gradient-to-br from-protega-teal to-protega-teal-dark text-white">
               <p className="text-sm opacity-90 mb-1">Total Transactions</p>
               <p className="text-4xl font-bold">{transactions.length}</p>
@@ -152,6 +152,17 @@ export default function MerchantDashboard() {
                   transactions
                     .filter(t => t.status === 'succeeded')
                     .reduce((sum, t) => sum + t.amount_cents, 0)
+                )}
+              </p>
+            </div>
+
+            <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+              <p className="text-sm opacity-90 mb-1">Protega Revenue</p>
+              <p className="text-4xl font-bold">
+                ${formatAmount(
+                  transactions
+                    .filter(t => t.status === 'succeeded')
+                    .reduce((sum, t) => sum + t.protega_fee_cents, 0)
                 )}
               </p>
             </div>
@@ -220,6 +231,7 @@ export default function MerchantDashboard() {
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Customer</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Amount</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Protega Fee</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
                     </tr>
                   </thead>
@@ -231,6 +243,9 @@ export default function MerchantDashboard() {
                         <td className="py-3 px-4 text-sm">{txn.user_email || 'Anonymous'}</td>
                         <td className="py-3 px-4 font-semibold">
                           ${formatAmount(txn.amount_cents)} {txn.currency.toUpperCase()}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-green-600 font-semibold">
+                          ${formatAmount(txn.protega_fee_cents)}
                         </td>
                         <td className="py-3 px-4">
                           {txn.status === 'succeeded' ? (

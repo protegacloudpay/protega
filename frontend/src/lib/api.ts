@@ -173,6 +173,7 @@ export interface MerchantLoginResponse {
 export interface TransactionItem {
   id: number;
   amount_cents: number;
+  protega_fee_cents: number;
   currency: string;
   status: string;
   created_at: string;
