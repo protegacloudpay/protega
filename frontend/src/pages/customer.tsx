@@ -35,8 +35,8 @@ export default function CustomerPage() {
 
     try {
       // In real app: Get actual Stripe token
-      // For demo: Use test token
-      const testToken = 'tok_visa'; // Stripe test token for 4242...
+      // For demo: Use test payment method
+      const testToken = 'pm_card_visa'; // Stripe test payment method
 
       const enrollData = {
         email: formData.email,
