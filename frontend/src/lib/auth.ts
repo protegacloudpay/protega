@@ -9,6 +9,7 @@ export interface MerchantData {
   merchant_id: number;
   email: string;
   name: string;
+  terminal_api_key?: string;
 }
 
 /**
