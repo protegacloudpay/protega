@@ -177,7 +177,10 @@ export interface TransactionItem {
   currency: string;
   status: string;
   created_at: string;
+  user_id?: number;
+  user_name?: string;
   user_email?: string;
+  user_phone?: string;
   merchant_ref?: string;
 }
 

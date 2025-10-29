@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { enrollUser } from '../lib/api';
+import { 
+  isPlatformAuthenticatorAvailable, 
+  registerBiometric, 
+  getBiometricCapabilities 
+} from '../lib/webauthn';
+import CardEntry from '../components/CardEntry';
 
 /**
  * Customer App Page
@@ -24,9 +30,64 @@ export default function CustomerPage() {
     last_name: '',
     email: '',
     fingerprint_sample: '',
+    stripe_token: '',
   });
 
   const [enrolledUserId, setEnrolledUserId] = useState<number | null>(null);
+  
+  // Touch ID / WebAuthn state
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [deviceType, setDeviceType] = useState('');
+  const [useTouchID, setUseTouchID] = useState(false);
+  
+  // Card entry mode
+  const [cardEntryMode, setCardEntryMode] = useState<'manual' | 'stripe'>('stripe');
+
+  // Check for biometric availability
+  useEffect(() => {
+    async function checkBiometric() {
+      const capabilities = await getBiometricCapabilities();
+      setBiometricAvailable(capabilities.available);
+      setDeviceType(capabilities.deviceType);
+    }
+    checkBiometric();
+  }, []);
+
+  const handleScanTouchID = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Prompt for Touch ID / biometric scan
+      const credentialId = await registerBiometric(
+        formData.email || 'user@example.com',
+        `${formData.first_name} ${formData.last_name}` || 'User'
+      );
+
+      // Use the credential ID as the fingerprint sample
+      setFormData({ ...formData, fingerprint_sample: credentialId });
+      setUseTouchID(true);
+      setError('');
+      
+      // Store credential for payment verification
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('protega_fingerprint_credential', credentialId);
+      }
+      
+      // Show success feedback
+      alert('✅ Biometric scan successful! Your fingerprint has been registered.');
+    } catch (err: any) {
+      setError(err.message || 'Biometric scan failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCardTokenGenerated = (token: string) => {
+    setFormData({ ...formData, stripe_token: token });
+    // Show success message
+    alert('Card saved! You can now complete enrollment.');
+  };
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,16 +95,19 @@ export default function CustomerPage() {
     setError('');
 
     try {
-      // In real app: Get actual Stripe token
-      // For demo: Use test payment method
-      const testToken = 'pm_card_visa'; // Stripe test payment method
+      // Validate that a token is provided
+      if (!formData.stripe_token || !formData.stripe_token.trim()) {
+        setError('Please provide a Stripe payment method token');
+        setLoading(false);
+        return;
+      }
 
       const enrollData = {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
         fingerprint_sample: formData.fingerprint_sample,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
-        stripe_payment_method_token: testToken,
+        stripe_payment_method_token: formData.stripe_token.trim(),
       };
 
       const response = await enrollUser(enrollData);
@@ -55,6 +119,7 @@ export default function CustomerPage() {
         // Save for quick access
         if (typeof window !== 'undefined') {
           localStorage.setItem('protega_user_id', response.user_id.toString());
+          localStorage.setItem('protega_used_touchid', useTouchID ? 'true' : 'false');
         }
       }
     } catch (err: any) {
@@ -251,32 +316,137 @@ export default function CustomerPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Fingerprint Registration *
               </label>
-              <input
-                type="text"
-                value={formData.fingerprint_sample}
-                onChange={(e) => setFormData({ ...formData, fingerprint_sample: e.target.value })}
-                placeholder="Scan your fingerprint..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Demo: Use "test123" or any text
-              </p>
+              
+              {/* Touch ID Available */}
+              {biometricAvailable && (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={handleScanTouchID}
+                    disabled={loading || !formData.email || !formData.first_name}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                  >
+                    <span className="text-2xl">👆</span>
+                    <span>Scan with {deviceType}</span>
+                  </button>
+                  {(!formData.email || !formData.first_name) && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      💡 Fill in your name and email first
+                    </p>
+                  )}
+                  {useTouchID && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ {deviceType} scan registered successfully!
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              {/* Manual Input Fallback */}
+              <div>
+                {biometricAvailable && (
+                  <p className="text-xs text-gray-500 mb-2">
+                    Or enter manually (for testing):
+                  </p>
+                )}
+                <input
+                  type="text"
+                  value={formData.fingerprint_sample}
+                  onChange={(e) => {
+                    setFormData({ ...formData, fingerprint_sample: e.target.value });
+                    setUseTouchID(false);
+                  }}
+                  placeholder={biometricAvailable ? "Manual entry (optional)" : "Use 'test123' for demo"}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                  readOnly={useTouchID}
+                />
+                {!biometricAvailable && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Demo Mode: Use "test123" or any text (no biometric sensor detected)
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Card Info (for display - not actually used, we use Stripe test token) */}
+            {/* Card Info */}
             <div className="border-t pt-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Payment Card</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">Payment Card Information</h3>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
-                  💳 <strong>Demo Mode:</strong> Automatically using Stripe test card (4242...)
-                </p>
-              </div>
+              <div className="space-y-4">
+                {/* Card Entry Mode Toggle */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setCardEntryMode('stripe')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      cardEntryMode === 'stripe'
+                        ? 'bg-teal-600 text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    💳 Enter Card Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardEntryMode('manual')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      cardEntryMode === 'manual'
+                        ? 'bg-teal-600 text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    🔑 Manual Token Entry
+                  </button>
+                </div>
 
-              <p className="text-xs text-gray-500">
-                In production: Real card entry with Stripe Elements
-              </p>
+                {/* Stripe Card Entry Component */}
+                {cardEntryMode === 'stripe' && (
+                  <div>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Enter your card details securely using Stripe. Your card information is encrypted and never stored on our servers.
+                    </p>
+                    <CardEntry onTokenGenerated={handleCardTokenGenerated} />
+                    {formData.stripe_token && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          ✅ Card saved! Token: <code className="font-mono text-xs bg-white px-2 py-1 rounded">{formData.stripe_token}</code>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Manual Token Entry */}
+                {cardEntryMode === 'manual' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Enter Your Stripe Payment Token *
+                    </label>
+                    <input
+                      type="text"
+                      id="stripe_token"
+                      value={formData.stripe_token || ''}
+                      onChange={(e) => setFormData({ ...formData, stripe_token: e.target.value })}
+                      placeholder="Enter your Stripe payment method token here"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-mono text-sm"
+                      required
+                    />
+                    
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800 font-semibold mb-2">📝 What is this?</p>
+                      <p className="text-xs text-blue-700 mb-2">
+                        For testing: Use one of these Stripe test tokens:
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_visa' })}>pm_card_visa</code>
+                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_mastercard' })}>pm_card_mastercard</code>
+                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_amex' })}>pm_card_amex</code>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Error Message */}

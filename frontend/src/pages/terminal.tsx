@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { verifyBiometric, getBiometricCapabilities } from '../lib/webauthn';
+import SelectCardModal, { SelectablePaymentMethod } from '../components/SelectCardModal';
+import CardBadge from '../components/CardBadge';
 
 /**
  * Merchant Terminal Page
@@ -22,6 +25,39 @@ export default function TerminalPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  
+  // Touch ID / WebAuthn state
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [deviceType, setDeviceType] = useState('');
+  
+  // Payment methods state
+  const [paymentMethods, setPaymentMethods] = useState<SelectablePaymentMethod[]>([]);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [selectedCardDetails, setSelectedCardDetails] = useState<SelectablePaymentMethod | null>(null);
+  const [customerId, setCustomerId] = useState<number | null>(null);
+
+  // Check for biometric availability
+  useEffect(() => {
+    async function checkBiometric() {
+      const capabilities = await getBiometricCapabilities();
+      setBiometricAvailable(capabilities.available);
+      setDeviceType(capabilities.deviceType);
+    }
+    checkBiometric();
+    
+    // Load saved config
+    if (typeof window !== 'undefined') {
+      const savedKey = localStorage.getItem('terminal_api_key');
+      const savedName = localStorage.getItem('merchant_name');
+      if (savedKey) {
+        setTerminalKey(savedKey);
+        setIsConfigured(true);
+      }
+      if (savedName) {
+        setMerchantName(savedName);
+      }
+    }
+  }, []);
 
   // Configure terminal
   const handleConfigure = (e: React.FormEvent) => {
@@ -41,6 +77,96 @@ export default function TerminalPage() {
   // Quick amount buttons
   const setQuickAmount = (value: string) => {
     setAmount(value);
+  };
+
+  // Fetch payment methods when fingerprint is provided
+  const fetchPaymentMethods = async (fingerprintSample: string) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      console.log('Fetching payment methods for fingerprint:', fingerprintSample);
+      console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+      
+      // First, identify the user by their fingerprint
+      const identifyResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/identify-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fingerprint_sample: fingerprintSample,
+        }),
+      });
+
+      console.log('Identify response status:', identifyResponse.status);
+      
+      if (!identifyResponse.ok) {
+        const errorData = await identifyResponse.json().catch(() => ({}));
+        console.error('Identify error:', errorData);
+        throw new Error(errorData.detail || 'Could not identify customer');
+      }
+
+      const userData = await identifyResponse.json();
+      console.log('User data:', userData);
+      setCustomerId(userData.user_id);
+
+      // Fetch their payment methods
+      const methodsUrl = `${process.env.NEXT_PUBLIC_API_URL}/users/${userData.user_id}/payment-methods`;
+      console.log('Fetching methods from:', methodsUrl);
+      
+      const methodsResponse = await fetch(methodsUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Methods response status:', methodsResponse.status);
+      
+      if (!methodsResponse.ok) {
+        const errorData = await methodsResponse.json().catch(() => ({}));
+        console.error('Methods error:', errorData);
+        throw new Error(errorData.detail || 'Could not fetch payment methods');
+      }
+
+      const methodsData = await methodsResponse.json();
+      console.log('Payment methods data:', methodsData);
+      
+      const methods: SelectablePaymentMethod[] = methodsData.items.map((pm: any) => ({
+        provider_ref: pm.provider_payment_method_id,
+        brand: pm.brand,
+        last4: pm.last4,
+        exp_month: pm.exp_month,
+        exp_year: pm.exp_year,
+        is_default: pm.is_default,
+      }));
+
+      console.log('Mapped methods:', methods);
+      setPaymentMethods(methods);
+
+      // Auto-select default card
+      const defaultCard = methods.find((m) => m.is_default);
+      if (defaultCard) {
+        setSelectedCard(defaultCard.provider_ref);
+        setSelectedCardDetails(defaultCard);
+      } else if (methods.length > 0) {
+        setSelectedCard(methods[0].provider_ref);
+        setSelectedCardDetails(methods[0]);
+      }
+    } catch (err: any) {
+      console.error('Fetch payment methods error:', err);
+      setError(err.message || 'Failed to fetch payment methods');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle card selection from modal
+  const handleCardSelect = (provider_ref: string) => {
+    setSelectedCard(provider_ref);
+    const card = paymentMethods.find((m) => m.provider_ref === provider_ref);
+    setSelectedCardDetails(card || null);
+    setShowCardModal(false);
   };
 
   // Process payment
@@ -230,35 +356,122 @@ export default function TerminalPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Fingerprint Verification
               </label>
-              <input
-                type="text"
-                value={fingerprint}
-                onChange={(e) => setFingerprint(e.target.value)}
-                placeholder="Scan fingerprint..."
-                className="w-full px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Demo: Use "test123" for enrolled users. System finds customer by fingerprint.
-              </p>
+              
+              {/* Touch ID Available */}
+              {biometricAvailable && (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoading(true);
+                      setError('');
+                      try {
+                        // For payment verification, we just need the customer to scan their finger
+                        // The WebAuthn credential ID is already stored from enrollment
+                        const storedCredential = localStorage.getItem('protega_fingerprint_credential');
+                        if (storedCredential) {
+                          // Verify the biometric
+                          await verifyBiometric(storedCredential);
+                          setFingerprint(storedCredential);
+                          setMessage(`✅ ${deviceType} verified!`);
+                          setTimeout(() => setMessage(''), 2000);
+                        } else {
+                          setError('No biometric credential found. Please enroll first.');
+                        }
+                      } catch (err: any) {
+                        setError(err.message || 'Biometric scan failed');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-5 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                  >
+                    <span className="text-3xl">👆</span>
+                    <span>Scan with {deviceType}</span>
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    ✓ Use your registered {deviceType} to verify payment
+                  </p>
+                </div>
+              )}
+              
+              {/* Manual Input Fallback */}
+              <div>
+                {biometricAvailable && (
+                  <p className="text-xs text-gray-500 mb-2">
+                    Or enter manually (for testing):
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={fingerprint}
+                    onChange={(e) => setFingerprint(e.target.value)}
+                    placeholder={biometricAvailable ? "Manual entry..." : "Scan fingerprint..."}
+                    className="flex-1 px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  {fingerprint && paymentMethods.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => fetchPaymentMethods(fingerprint)}
+                      disabled={loading}
+                      className="px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors"
+                    >
+                      Load Cards
+                    </button>
+                  )}
+                </div>
+                {!biometricAvailable && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Demo: Use "test123" for enrolled users. Click "Load Cards" after entering.
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Card Selection (Optional) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Specific Card (Optional)
-              </label>
-              <input
-                type="text"
-                value={selectedCard}
-                onChange={(e) => setSelectedCard(e.target.value)}
-                placeholder="Leave blank to use default card"
-                className="w-full px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Optional: Enter Stripe Payment Method ID (pm_xxx) to charge a specific card
-              </p>
-            </div>
+            {/* Card Selection */}
+            {fingerprint && paymentMethods.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment Method
+                </label>
+                
+                {selectedCardDetails ? (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+                      <CardBadge
+                        brand={selectedCardDetails.brand}
+                        last4={selectedCardDetails.last4}
+                        expMonth={selectedCardDetails.exp_month}
+                        expYear={selectedCardDetails.exp_year}
+                        isDefault={selectedCardDetails.is_default}
+                        large={true}
+                      />
+                    </div>
+                    
+                    {paymentMethods.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCardModal(true)}
+                        className="w-full px-4 py-3 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-semibold transition-colors"
+                      >
+                        Choose Different Card ({paymentMethods.length} available)
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCardModal(true)}
+                    className="w-full px-4 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
+                  >
+                    Select Payment Card
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             {message && (
@@ -289,6 +502,9 @@ export default function TerminalPage() {
                   setAmount('');
                   setFingerprint('');
                   setSelectedCard('');
+                  setSelectedCardDetails(null);
+                  setPaymentMethods([]);
+                  setCustomerId(null);
                   setMessage('');
                   setError('');
                 }}
@@ -312,12 +528,20 @@ export default function TerminalPage() {
           <h3 className="text-white font-semibold mb-2">How it works:</h3>
           <ol className="text-blue-100 text-sm space-y-1">
             <li>1. Enter payment amount or use quick buttons</li>
-            <li>2. Customer provides ID and scans fingerprint</li>
-            <li>3. Payment processed automatically</li>
-            <li>4. Receipt generated - Done!</li>
+            <li>2. Customer scans fingerprint and clicks "Load Cards"</li>
+            <li>3. Select payment method (if customer has multiple cards)</li>
+            <li>4. Click "Charge Customer" - Done!</li>
           </ol>
         </div>
       </div>
+
+      {/* Card Selection Modal */}
+      <SelectCardModal
+        isOpen={showCardModal}
+        onClose={() => setShowCardModal(false)}
+        methods={paymentMethods}
+        onSelect={handleCardSelect}
+      />
     </div>
   );
 }

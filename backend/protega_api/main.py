@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from protega_api.config import settings
 from protega_api.db import check_db_connection
-from protega_api.routers import enroll, health, merchant, pay, payment_methods
+from protega_api.routers import enroll, health, merchant, pay, payment_methods, websocket
 
 # Configure logging
 logging.basicConfig(
@@ -58,9 +58,21 @@ allowed_origins = list(set(filter(None, allowed_origins)))
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 
+# Custom CORS origin checker to allow all Vercel deployments
+def check_origin(origin: str) -> bool:
+    """Check if origin is allowed."""
+    # Allow exact matches
+    if origin in allowed_origins:
+        return True
+    # Allow all vercel.app domains
+    if origin.endswith(".vercel.app") and origin.startswith("https://"):
+        return True
+    return False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # Allow all Vercel deployments
+    allow_origins=allowed_origins,  # Also allow specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,6 +84,7 @@ app.include_router(enroll.router)
 app.include_router(pay.router)
 app.include_router(merchant.router)
 app.include_router(payment_methods.router, tags=["payment-methods"])
+app.include_router(websocket.router)
 
 
 @app.get("/")

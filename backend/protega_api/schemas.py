@@ -106,6 +106,54 @@ class MerchantLoginResponse(BaseModel):
     terminal_api_key: str
 
 
+class AutoMerchantRequest(BaseModel):
+    """Request to auto-create a merchant (just device ID)."""
+    
+    device_id: str = Field(..., min_length=1, description="Unique device/terminal identifier")
+
+
+class AutoMerchantResponse(BaseModel):
+    """Response after auto-creating merchant."""
+    
+    merchant_id: int
+    terminal_api_key: str
+    device_id: str
+    message: str = "Merchant created automatically"
+
+
+class SMSVerifyRequest(BaseModel):
+    """Request to verify SMS code."""
+    
+    phone: str = Field(..., min_length=10, description="Phone number with country code (e.g., +1234567890)")
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit verification code")
+
+
+class FingerprintOnlyEnrollRequest(BaseModel):
+    """Simplified enrollment: fingerprint + phone number only."""
+    
+    fingerprint_sample: str = Field(..., min_length=1, max_length=10000)
+    phone: str = Field(..., min_length=10)
+    full_name: str = Field(..., min_length=1)
+
+
+class AutoSettlementRequest(BaseModel):
+    """Automatic settlement configuration."""
+    
+    merchant_id: int
+    connect_account_id: str = Field(..., description="Stripe Connect account ID")
+    auto_transfer: bool = True
+
+
+class RealTimeTransactionEvent(BaseModel):
+    """Real-time transaction event for WebSocket."""
+    
+    event_type: str = Field(..., description="Type: 'transaction_created', 'fee_distributed', etc.")
+    transaction_id: int
+    amount_cents: int
+    merchant_id: int
+    timestamp: datetime
+
+
 # ============================================================================
 # Transaction Schemas
 # ============================================================================

@@ -15,6 +15,8 @@ from protega_api.schemas import (
     MerchantLoginResponse,
     MerchantSignupRequest,
     MerchantSignupResponse,
+    AutoMerchantRequest,
+    AutoMerchantResponse,
     TransactionItem,
     TransactionsListResponse,
 )
@@ -86,6 +88,72 @@ def signup_merchant(
         email=merchant.email,
         name=merchant.name,
         terminal_api_key=api_key
+    )
+
+
+@router.post("/auto-create", response_model=AutoMerchantResponse, status_code=status.HTTP_201_CREATED)
+def auto_create_merchant(
+    request: AutoMerchantRequest,
+    db: Annotated[Session, Depends(get_db)]
+):
+    """
+    Automatically create a merchant account from a device ID.
+    
+    This is the "zero-friction" merchant onboarding:
+    - No manual signup required
+    - Device registers itself
+    - Merchant account auto-created
+    - Immediate payment acceptance
+    
+    Args:
+        request: Device ID
+        
+    Returns:
+        Terminal API key for immediate use
+    """
+    logger.info(f"Auto-creating merchant for device: {request.device_id}")
+    
+    # Check if device already registered
+    existing_terminal = db.query(Terminal).filter(
+        Terminal.label == request.device_id
+    ).first()
+    
+    if existing_terminal:
+        logger.info(f"Device already registered: {request.device_id}")
+        return AutoMerchantResponse(
+            merchant_id=existing_terminal.merchant_id,
+            terminal_api_key=existing_terminal.api_key,
+            device_id=request.device_id,
+            message="Device already registered"
+        )
+    
+    # Create merchant with auto-generated credentials
+    merchant = Merchant(
+        email=f"merchant_{request.device_id}@protega.auto",
+        name=f"Merchant {request.device_id[:8]}",
+        password_hash=hash_password(secrets.token_urlsafe(32))  # Random password, not meant to be used
+    )
+    db.add(merchant)
+    db.flush()
+    
+    # Create terminal
+    api_key = generate_api_key()
+    terminal = Terminal(
+        merchant_id=merchant.id,
+        label=request.device_id,
+        api_key=api_key
+    )
+    db.add(terminal)
+    
+    db.commit()
+    
+    logger.info(f"Auto-created merchant {merchant.id} for device {request.device_id}")
+    
+    return AutoMerchantResponse(
+        merchant_id=merchant.id,
+        terminal_api_key=api_key,
+        device_id=request.device_id,
+        message="Merchant created automatically - ready to accept payments!"
     )
 
 
@@ -183,17 +251,28 @@ def list_transactions(
     # Build response items
     items = []
     for txn in transactions:
+        user_id = None
+        user_name = None
         user_email = None
-        if txn.user_id:
-            user_email = txn.user.email if txn.user else None
+        user_phone = None
+        
+        if txn.user_id and txn.user:
+            user_id = txn.user.id
+            user_name = txn.user.full_name
+            user_email = txn.user.email
+            user_phone = txn.user.phone
         
         items.append(TransactionItem(
             id=txn.id,
             amount_cents=txn.amount_cents,
+            protega_fee_cents=txn.protega_fee_cents if txn.protega_fee_cents is not None else 0,
             currency=txn.currency,
             status=txn.status.value,
             created_at=txn.created_at,
+            user_id=user_id,
+            user_name=user_name,
             user_email=user_email,
+            user_phone=user_phone,
             merchant_ref=txn.merchant_ref
         ))
     

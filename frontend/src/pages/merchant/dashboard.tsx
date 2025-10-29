@@ -240,7 +240,7 @@ export default function MerchantDashboard() {
                     <tr className="border-b-2 border-gray-200">
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">ID</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Customer</th>
+                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Customer Details</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Amount</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Protega Fee</th>
                       <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
@@ -251,7 +251,20 @@ export default function MerchantDashboard() {
                       <tr key={txn.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 font-mono text-sm">{txn.id}</td>
                         <td className="py-3 px-4 text-sm">{formatDate(txn.created_at)}</td>
-                        <td className="py-3 px-4 text-sm">{txn.user_email || 'Anonymous'}</td>
+                        <td className="py-3 px-4">
+                          {txn.user_name ? (
+                            <div className="text-sm">
+                              <div className="font-semibold text-gray-900">{txn.user_name}</div>
+                              <div className="text-gray-600 text-xs">{txn.user_email}</div>
+                              {txn.user_phone && (
+                                <div className="text-gray-500 text-xs">{txn.user_phone}</div>
+                              )}
+                              <div className="text-gray-400 text-xs mt-1">ID: {txn.user_id}</div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">Anonymous</span>
+                          )}
+                        </td>
                         <td className="py-3 px-4 font-semibold">
                           ${formatAmount(txn.amount_cents)} {txn.currency.toUpperCase()}
                         </td>

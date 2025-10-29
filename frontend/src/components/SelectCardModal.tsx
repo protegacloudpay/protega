@@ -105,7 +105,7 @@ export default function SelectCardModal({
             No payment methods available
           </div>
         ) : (
-          <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
+          <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
             {methods.map((method) => (
               <button
                 key={method.provider_ref}
@@ -116,25 +116,26 @@ export default function SelectCardModal({
                     setSelectedRef(method.provider_ref);
                   }
                 }}
-                className={`w-full p-4 rounded-xl border-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                className={`w-full p-4 rounded-xl border-3 text-left transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-400 ${
                   selectedRef === method.provider_ref
-                    ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-400 shadow-md'
-                    : 'border-gray-200 hover:border-cyan-300 hover:bg-gray-50'
+                    ? 'border-cyan-500 bg-cyan-50 ring-4 ring-cyan-200 shadow-xl scale-105'
+                    : 'border-gray-300 hover:border-cyan-400 hover:bg-gray-50 hover:scale-102'
                 }`}
                 aria-pressed={selectedRef === method.provider_ref}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <CardBadge
                     brand={method.brand}
                     last4={method.last4}
                     expMonth={method.exp_month}
                     expYear={method.exp_year}
                     isDefault={method.is_default}
+                    large={true}
                   />
                   {selectedRef === method.provider_ref && (
-                    <div className="flex-shrink-0 w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                       <svg
-                        className="w-4 h-4 text-white"
+                        className="w-5 h-5 text-white"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >

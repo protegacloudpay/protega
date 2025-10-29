@@ -36,7 +36,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=True, index=True)  # Made optional for SMS-only enrollment
+    phone = Column(String(20), unique=True, nullable=True, index=True)  # Added for SMS verification
     full_name = Column(String(255), nullable=False)
     stripe_customer_id = Column(String(255), unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -60,7 +60,7 @@ def identify_user_by_fingerprint(
     
     matched_user_id = None
     for template in templates:
-        if verify_template_hash(normalized_sample, template.template_hash):
+        if verify_template_hash(normalized_sample, template.template_hash, template.salt):
             matched_user_id = template.user_id
             logger.info(f"Fingerprint matched for user: {matched_user_id}")
             break
