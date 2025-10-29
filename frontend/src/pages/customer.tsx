@@ -23,9 +23,7 @@ export default function CustomerPage() {
     first_name: '',
     last_name: '',
     email: '',
-    phone: '',
-    fingerprint_hash: '',
-    stripe_payment_method_token: '',
+    fingerprint_sample: '',
   });
 
   const [enrolledUserId, setEnrolledUserId] = useState<number | null>(null);
@@ -47,7 +45,10 @@ export default function CustomerPage() {
       const testToken = 'tok_visa'; // Stripe test token for 4242...
 
       const enrollData = {
-        ...formData,
+        email: formData.email,
+        full_name: `${formData.first_name} ${formData.last_name}`,
+        fingerprint_sample: formData.fingerprint_sample,
+        consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
         stripe_payment_method_token: testToken,
       };
 
@@ -249,20 +250,6 @@ export default function CustomerPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone *
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="555-0100"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                required
-              />
-            </div>
-
             {/* Fingerprint */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,8 +257,8 @@ export default function CustomerPage() {
               </label>
               <input
                 type="text"
-                value={formData.fingerprint_hash}
-                onChange={(e) => setFormData({ ...formData, fingerprint_hash: e.target.value })}
+                value={formData.fingerprint_sample}
+                onChange={(e) => setFormData({ ...formData, fingerprint_sample: e.target.value })}
                 placeholder="Scan your fingerprint..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 required
