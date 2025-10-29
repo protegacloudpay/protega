@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { enrollUser } from '../lib/api';
 
@@ -27,12 +27,6 @@ export default function CustomerPage() {
   });
 
   const [enrolledUserId, setEnrolledUserId] = useState<number | null>(null);
-
-  // Card details for display
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
-  const [zip, setZip] = useState('');
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
