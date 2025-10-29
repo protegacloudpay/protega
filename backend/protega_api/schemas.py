@@ -42,6 +42,12 @@ class EnrollResponse(BaseModel):
 # Payment Schemas
 # ============================================================================
 
+class IdentifyUserRequest(BaseModel):
+    """Request to identify a user by fingerprint."""
+    
+    fingerprint_sample: str = Field(..., min_length=1, max_length=10000)
+
+
 class PayRequest(BaseModel):
     """Request to process a biometric payment."""
     
@@ -113,7 +119,10 @@ class TransactionItem(BaseModel):
     currency: str
     status: str
     created_at: datetime
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
     user_email: Optional[str] = None
+    user_phone: Optional[str] = None
     merchant_ref: Optional[str] = None
 
     class Config:

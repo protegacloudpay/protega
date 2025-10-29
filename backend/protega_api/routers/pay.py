@@ -20,7 +20,7 @@ from protega_api.models import (
     User,
     PaymentProvider,
 )
-from protega_api.schemas import PayRequest, PayResponse
+from protega_api.schemas import PayRequest, PayResponse, IdentifyUserRequest
 
 router = APIRouter(tags=["payments"])
 logger = logging.getLogger(__name__)
@@ -28,6 +28,64 @@ logger = logging.getLogger(__name__)
 # Protega CloudPay Revenue Model
 PROTEGA_PERCENT_FEE = Decimal("0.0025")  # 0.25% per transaction
 PROTEGA_FLAT_FEE_CENTS = 30               # $0.30 flat fee per transaction
+
+
+@router.post("/identify-user")
+def identify_user_by_fingerprint(
+    request: IdentifyUserRequest,
+    db: Annotated[Session, Depends(get_db)]
+):
+    """
+    Identify a user by their fingerprint sample.
+    
+    Used by merchants to look up a customer before processing payment.
+    Returns the user's ID so their payment methods can be fetched.
+    
+    Args:
+        request: Request containing fingerprint_sample
+        
+    Returns:
+        Dict with user_id and user details
+    """
+    fingerprint_sample = request.fingerprint_sample
+    
+    logger.info("Identifying user by fingerprint")
+    
+    # Normalize fingerprint
+    adapter = get_hardware_adapter()
+    normalized_sample = adapter.to_template_input(fingerprint_sample)
+    
+    # Match against all biometric templates
+    templates = db.query(BiometricTemplate).all()
+    
+    matched_user_id = None
+    for template in templates:
+        if verify_template_hash(normalized_sample, template.template_hash):
+            matched_user_id = template.user_id
+            logger.info(f"Fingerprint matched for user: {matched_user_id}")
+            break
+    
+    if not matched_user_id:
+        logger.warning("No biometric match found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found. Please enroll first."
+        )
+    
+    # Get user details
+    user = db.query(User).filter(User.id == matched_user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User record not found"
+        )
+    
+    return {
+        "user_id": user.id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "message": "Customer identified successfully"
+    }
 
 
 @router.post("/pay", response_model=PayResponse)
