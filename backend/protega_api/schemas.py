@@ -109,7 +109,7 @@ class TransactionItem(BaseModel):
     
     id: int
     amount_cents: int
-    protega_fee_cents: int
+    protega_fee_cents: int = 0
     currency: str
     status: str
     created_at: datetime
