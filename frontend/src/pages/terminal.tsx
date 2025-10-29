@@ -18,7 +18,7 @@ export default function TerminalPage() {
   
   const [amount, setAmount] = useState('');
   const [fingerprint, setFingerprint] = useState('');
-  const [userId, setUserId] = useState('');
+  const [selectedCard, setSelectedCard] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -55,12 +55,13 @@ export default function TerminalPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Terminal-Key': terminalKey,
         },
         body: JSON.stringify({
-          user_id: parseInt(userId),
-          fingerprint_hash: fingerprint,
+          terminal_api_key: terminalKey,
+          fingerprint_sample: fingerprint,
           amount_cents: Math.round(parseFloat(amount) * 100),
+          currency: 'usd',
+          ...(selectedCard ? { payment_method_provider_ref: selectedCard } : {}),
         }),
       });
 
@@ -72,7 +73,7 @@ export default function TerminalPage() {
         setTimeout(() => {
           setAmount('');
           setFingerprint('');
-          setUserId('');
+          setSelectedCard('');
           setMessage('');
         }, 3000);
       } else {
@@ -224,24 +225,6 @@ export default function TerminalPage() {
               ))}
             </div>
 
-            {/* User ID (simulates fingerprint lookup) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Customer ID
-              </label>
-              <input
-                type="number"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="Enter customer ID"
-                className="w-full px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 In production: Customer scans fingerprint here
-              </p>
-            </div>
-
             {/* Fingerprint (simulated) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -256,7 +239,24 @@ export default function TerminalPage() {
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                💡 Demo only: Use "test123" for enrolled users
+                💡 Demo: Use "test123" for enrolled users. System finds customer by fingerprint.
+              </p>
+            </div>
+
+            {/* Card Selection (Optional) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Specific Card (Optional)
+              </label>
+              <input
+                type="text"
+                value={selectedCard}
+                onChange={(e) => setSelectedCard(e.target.value)}
+                placeholder="Leave blank to use default card"
+                className="w-full px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Optional: Enter Stripe Payment Method ID (pm_xxx) to charge a specific card
               </p>
             </div>
 
@@ -288,7 +288,7 @@ export default function TerminalPage() {
                 onClick={() => {
                   setAmount('');
                   setFingerprint('');
-                  setUserId('');
+                  setSelectedCard('');
                   setMessage('');
                   setError('');
                 }}
