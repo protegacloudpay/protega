@@ -29,6 +29,7 @@ export default function MerchantLogin() {
         merchant_id: response.merchant_id,
         email: response.email,
         name: response.name,
+        terminal_api_key: response.terminal_api_key,
       });
       
       // Redirect to dashboard

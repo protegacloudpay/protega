@@ -97,6 +97,7 @@ class MerchantLoginResponse(BaseModel):
     merchant_id: int
     email: str
     name: str
+    terminal_api_key: str
 
 
 # ============================================================================

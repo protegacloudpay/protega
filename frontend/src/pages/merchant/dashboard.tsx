@@ -92,6 +92,46 @@ export default function MerchantDashboard() {
             )}
           </div>
 
+          {/* Terminal API Key Card */}
+          {merchantData?.terminal_api_key && (
+            <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 mb-8">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Terminal API Key
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Use this key to configure your payment terminals
+                  </p>
+                  <div className="bg-white p-3 rounded-lg border border-gray-200 font-mono text-sm break-all">
+                    {merchantData.terminal_api_key}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(merchantData.terminal_api_key);
+                    alert('API Key copied to clipboard!');
+                  }}
+                  className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="mt-4 pt-4 border-t border-blue-200">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Quick Start:</strong> Go to{' '}
+                  <Link href="/terminal" className="text-blue-600 hover:underline font-semibold">
+                    Payment Terminal
+                  </Link>
+                  {' '}and paste this key to start accepting payments
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Stats and Quick Actions */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="card bg-gradient-to-br from-protega-teal to-protega-teal-dark text-white">

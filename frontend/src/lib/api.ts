@@ -167,6 +167,7 @@ export interface MerchantLoginResponse {
   merchant_id: number;
   email: string;
   name: string;
+  terminal_api_key: string;
 }
 
 export interface TransactionItem {

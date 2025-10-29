@@ -123,6 +123,15 @@ def login_merchant(
             detail="Invalid email or password"
         )
     
+    # Get merchant's terminal API key
+    terminal = db.query(Terminal).filter(Terminal.merchant_id == merchant.id).first()
+    if not terminal:
+        logger.error(f"No terminal found for merchant: {merchant.id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Terminal configuration error"
+        )
+    
     # Create JWT token
     token = create_jwt({"sub": str(merchant.id), "email": merchant.email})
     
@@ -132,7 +141,8 @@ def login_merchant(
         token=token,
         merchant_id=merchant.id,
         email=merchant.email,
-        name=merchant.name
+        name=merchant.name,
+        terminal_api_key=terminal.api_key
     )
 
 
