@@ -112,8 +112,10 @@ export default function MerchantDashboard() {
                 </div>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(merchantData.terminal_api_key);
-                    alert('API Key copied to clipboard!');
+                    if (merchantData.terminal_api_key) {
+                      navigator.clipboard.writeText(merchantData.terminal_api_key);
+                      alert('API Key copied to clipboard!');
+                    }
                   }}
                   className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
                 >
