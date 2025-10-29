@@ -132,7 +132,7 @@ export default function MerchantDashboard() {
           )}
 
           {/* Stats and Quick Actions */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid md:grid-cols-5 gap-4 mb-8">
             <div className="card bg-gradient-to-br from-protega-teal to-protega-teal-dark text-white">
               <p className="text-sm opacity-90 mb-1">Total Transactions</p>
               <p className="text-4xl font-bold">{transactions.length}</p>
@@ -145,8 +145,8 @@ export default function MerchantDashboard() {
               </p>
             </div>
 
-            <div className="card bg-gradient-to-br from-protega-gold to-yellow-500 text-white">
-              <p className="text-sm opacity-90 mb-1">Total Revenue</p>
+            <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <p className="text-sm opacity-90 mb-1">Customer Payments</p>
               <p className="text-4xl font-bold">
                 ${formatAmount(
                   transactions
@@ -157,12 +157,23 @@ export default function MerchantDashboard() {
             </div>
 
             <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-              <p className="text-sm opacity-90 mb-1">Protega Revenue</p>
+              <p className="text-sm opacity-90 mb-1">Protega Fee</p>
               <p className="text-4xl font-bold">
                 ${formatAmount(
                   transactions
                     .filter(t => t.status === 'succeeded')
                     .reduce((sum, t) => sum + t.protega_fee_cents, 0)
+                )}
+              </p>
+            </div>
+
+            <div className="card bg-gradient-to-br from-protega-gold to-yellow-500 text-white">
+              <p className="text-sm opacity-90 mb-1">Merchant Revenue</p>
+              <p className="text-4xl font-bold">
+                ${formatAmount(
+                  transactions
+                    .filter(t => t.status === 'succeeded')
+                    .reduce((sum, t) => sum + t.amount_cents - t.protega_fee_cents, 0)
                 )}
               </p>
             </div>

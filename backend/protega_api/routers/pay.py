@@ -174,21 +174,21 @@ def process_payment(
                 message="No payment method found"
             )
     
-    # Step 5: Calculate Protega markup fee
+    # Step 5: Calculate Protega fee (deducted from merchant's portion)
     # Protega earns 0.25% + $0.30 per transaction
     protega_fee_cents = int(request.amount_cents * PROTEGA_PERCENT_FEE) + PROTEGA_FLAT_FEE_CENTS
-    total_charge_cents = request.amount_cents + protega_fee_cents
+    merchant_receives_cents = request.amount_cents - protega_fee_cents
     
     logger.info(
-        f"Payment breakdown - Base: ${request.amount_cents/100:.2f}, "
+        f"Payment breakdown - Customer Pays: ${request.amount_cents/100:.2f}, "
         f"Protega Fee: ${protega_fee_cents/100:.2f}, "
-        f"Total: ${total_charge_cents/100:.2f}"
+        f"Merchant Receives: ${merchant_receives_cents/100:.2f}"
     )
     
-    # Step 6: Process payment via Stripe (with markup included)
+    # Step 6: Process payment via Stripe (charge customer the set price)
     try:
         payment_status, intent_id = charge(
-            amount_cents=total_charge_cents,  # Charge customer the total amount
+            amount_cents=request.amount_cents,  # Charge customer only the transaction amount
             currency=request.currency,
             customer_id=user.stripe_customer_id,
             payment_method_id=payment_method.provider_payment_method_id,
@@ -226,15 +226,14 @@ def process_payment(
     db.refresh(transaction)
     
     if payment_status == "succeeded":
-        total_charged = request.amount_cents + protega_fee_cents
         return PayResponse(
             status="succeeded",
             transaction_id=transaction.id,
             message=(
                 f"Transaction Approved - "
-                f"Amount: ${request.amount_cents/100:.2f}, "
+                f"Customer Paid: ${request.amount_cents/100:.2f}, "
                 f"Protega Fee: ${protega_fee_cents/100:.2f}, "
-                f"Total Charged: ${total_charged/100:.2f}"
+                f"Merchant Receives: ${merchant_receives_cents/100:.2f}"
             )
         )
     else:
