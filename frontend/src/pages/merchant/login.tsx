@@ -114,19 +114,10 @@ export default function MerchantLogin() {
             </div>
           </form>
 
-          <div className="mt-6 card bg-blue-50 border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-2">Don't have an account?</h3>
-            <p className="text-sm text-blue-800 mb-3">
-              Create a merchant account via the API:
-            </p>
-            <a 
-              href="http://localhost:8000/docs#/merchant/signup_merchant_merchant_signup_post"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 underline"
-            >
-              Open API Docs (POST /merchant/signup) →
-            </a>
+          <div className="mt-6 text-center">
+            <Link href="/merchant/signup" className="text-protega-teal hover:text-protega-teal-dark text-sm">
+              Don't have an account? Create one →
+            </Link>
           </div>
         </div>
       </main>
