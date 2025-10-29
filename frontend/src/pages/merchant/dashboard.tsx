@@ -97,11 +97,8 @@ export default function MerchantDashboard() {
             <div className="card bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 mb-8">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                    Terminal API Key
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    🔑 Terminal API Key
                   </h3>
                   <p className="text-sm text-gray-600 mb-3">
                     Use this key to configure your payment terminals
