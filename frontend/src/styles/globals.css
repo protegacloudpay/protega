@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --protega-teal: #0E7C86;
+  --protega-teal-dark: #0A4E54;
+  --protega-gold: #F2B705;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900;
+}
+
+/* Custom button styles */
+.btn-primary {
+  @apply bg-protega-teal hover:bg-protega-teal-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply bg-white border-2 border-protega-teal text-protega-teal hover:bg-protega-teal hover:text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-xl shadow-lg p-6;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-protega-teal focus:border-transparent;
+}
+
+/* Success banner */
+.success-banner {
+  @apply bg-green-500 text-white text-center py-8 rounded-lg text-2xl font-bold shadow-lg;
+}
+
+/* Error banner */
+.error-banner {
+  @apply bg-red-500 text-white text-center py-8 rounded-lg text-2xl font-bold shadow-lg;
+}

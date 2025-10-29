@@ -1,0 +1,164 @@
+"""SQLAlchemy database models."""
+
+from datetime import datetime
+from enum import Enum as PyEnum
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import relationship
+
+from protega_api.db import Base
+
+
+class PaymentProvider(str, PyEnum):
+    """Payment provider types."""
+    STRIPE = "stripe"
+
+
+class TransactionStatus(str, PyEnum):
+    """Transaction status types."""
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class User(Base):
+    """Customer/user who enrolls biometrics and payment methods."""
+    
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    full_name = Column(String(255), nullable=False)
+    stripe_customer_id = Column(String(255), unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    biometric_templates = relationship("BiometricTemplate", back_populates="user", cascade="all, delete-orphan")
+    payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
+    consents = relationship("Consent", back_populates="user", cascade="all, delete-orphan")
+    transactions = relationship("Transaction", back_populates="user")
+
+
+class BiometricTemplate(Base):
+    """Hashed biometric template (never stores raw fingerprints)."""
+    
+    __tablename__ = "biometric_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    template_hash = Column(String(128), nullable=False)  # Hex-encoded hash
+    salt = Column(String(64), nullable=False)  # Hex-encoded salt
+    active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="biometric_templates")
+
+    __table_args__ = (
+        Index("idx_active_templates", "user_id", "active"),
+    )
+
+
+class Consent(Base):
+    """User consent records for biometric data processing."""
+    
+    __tablename__ = "consents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    consent_text = Column(Text, nullable=False)
+    accepted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="consents")
+
+
+class Merchant(Base):
+    """Merchant/business account."""
+    
+    __tablename__ = "merchants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    terminals = relationship("Terminal", back_populates="merchant")
+    transactions = relationship("Transaction", back_populates="merchant")
+
+
+class Terminal(Base):
+    """Payment terminal (POS device or kiosk)."""
+    
+    __tablename__ = "terminals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=False, index=True)
+    label = Column(String(255), nullable=False)
+    api_key = Column(String(64), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    merchant = relationship("Merchant", back_populates="terminals")
+
+
+class PaymentMethod(Base):
+    """Stored payment method (e.g., credit card via Stripe)."""
+    
+    __tablename__ = "payment_methods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(Enum(PaymentProvider), nullable=False, default=PaymentProvider.STRIPE)
+    provider_payment_method_id = Column(String(255), nullable=False, unique=True, index=True)
+    brand = Column(String(50))  # e.g., "visa", "mastercard"
+    last4 = Column(String(4))
+    exp_month = Column(Integer)
+    exp_year = Column(Integer)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="payment_methods")
+
+    __table_args__ = (
+        Index("idx_default_payment_method", "user_id", "is_default"),
+    )
+
+
+class Transaction(Base):
+    """Payment transaction record."""
+    
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount_cents = Column(Integer, nullable=False)  # Base transaction amount (merchant's amount)
+    protega_fee_cents = Column(Integer, default=0, nullable=False)  # Protega's revenue: 0.25% + $0.30
+    currency = Column(String(3), nullable=False, default="usd")
+    status = Column(Enum(TransactionStatus), nullable=False, index=True)
+    processor_txn_id = Column(String(255), index=True)  # Stripe payment intent ID
+    merchant_ref = Column(String(255))  # Optional merchant reference
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    merchant = relationship("Merchant", back_populates="transactions")
+    user = relationship("User", back_populates="transactions")
+
+    __table_args__ = (
+        Index("idx_merchant_transactions", "merchant_id", "created_at"),
+    )
+
