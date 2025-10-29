@@ -23,10 +23,12 @@ export default function KioskDemoPage() {
 
   // Load terminal config
   useEffect(() => {
-    const key = localStorage.getItem('terminal_api_key') || '';
-    const name = localStorage.getItem('merchant_name') || 'Demo Store';
-    setTerminalKey(key);
-    setMerchantName(name);
+    if (typeof window !== 'undefined') {
+      const key = localStorage.getItem('terminal_api_key') || '';
+      const name = localStorage.getItem('merchant_name') || 'Demo Store';
+      setTerminalKey(key);
+      setMerchantName(name);
+    }
   }, []);
 
   // Auto-reset after success

@@ -53,7 +53,9 @@ export default function CustomerPage() {
         setView('success');
         
         // Save for quick access
-        localStorage.setItem('protega_user_id', response.user_id.toString());
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('protega_user_id', response.user_id.toString());
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Enrollment failed');

@@ -30,8 +30,10 @@ export default function TerminalPage() {
       setError('Please enter your Terminal API Key');
       return;
     }
-    localStorage.setItem('terminal_api_key', terminalKey);
-    localStorage.setItem('merchant_name', merchantName);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('terminal_api_key', terminalKey);
+      localStorage.setItem('merchant_name', merchantName);
+    }
     setIsConfigured(true);
     setError('');
   };
@@ -85,8 +87,10 @@ export default function TerminalPage() {
 
   // Reset configuration
   const handleReset = () => {
-    localStorage.removeItem('terminal_api_key');
-    localStorage.removeItem('merchant_name');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('terminal_api_key');
+      localStorage.removeItem('merchant_name');
+    }
     setIsConfigured(false);
     setTerminalKey('');
     setMerchantName('');
