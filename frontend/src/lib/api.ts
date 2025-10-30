@@ -318,3 +318,8 @@ export async function listCustomers(token: string): Promise<CustomerListResponse
   return apiGet<CustomerListResponse>('/customers', token);
 }
 
+// Customer Transactions API
+export async function getCustomerTransactions(userId: number): Promise<TransactionsListResponse> {
+  return apiGet<TransactionsListResponse>(`/users/${userId}/transactions`);
+}
+

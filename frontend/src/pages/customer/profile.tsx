@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { listPaymentMethods, addPaymentMethod, deletePaymentMethod, PaymentMethod, PaymentMethodCreateRequest, getTransactions, TransactionItem } from '@/lib/api';
+import { listPaymentMethods, addPaymentMethod, deletePaymentMethod, PaymentMethod, PaymentMethodCreateRequest, getCustomerTransactions, TransactionItem } from '@/lib/api';
 import CardBadge from '@/components/CardBadge';
 import CardEntry from '@/components/CardEntry';
 import Confirm from '@/components/Confirm';
@@ -81,15 +81,11 @@ export default function CustomerProfile() {
     if (!customerId) return;
 
     try {
-      // Get transactions for this customer
-      const token = localStorage.getItem('auth_token') || '';
-      const response = await getTransactions(token);
-      // Filter transactions for this customer
-      const customerTransactions = response.items.filter(t => t.user_id === parseInt(customerId));
-      setTransactions(customerTransactions);
+      const response = await getCustomerTransactions(parseInt(customerId));
+      setTransactions(response.items);
     } catch (err: any) {
       console.error('Failed to load transactions:', err);
-      // Don't show error for transactions - they might not be accessible
+      // Don't show error - just leave empty
     }
   };
 

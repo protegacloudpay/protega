@@ -2,6 +2,7 @@
 
 import logging
 from typing import Annotated, List
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -13,6 +14,60 @@ from protega_api.deps import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get(
+    "/users/{user_id}/transactions",
+    response_model=schemas.TransactionsListResponse,
+    summary="List all transactions for a user",
+)
+def list_user_transactions(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 100,
+    offset: int = 0
+):
+    """
+    Retrieve all transactions for a specific user.
+    
+    Returns list of transactions with details like amount, date, and status.
+    Only shows non-sensitive information.
+    """
+    # Verify user exists
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found"
+        )
+    
+    # Get all transactions for user
+    transactions = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.user_id == user_id)
+        .order_by(models.Transaction.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    
+    total = db.query(models.Transaction).filter(
+        models.Transaction.user_id == user_id
+    ).count()
+    
+    items = []
+    for txn in transactions:
+        items.append(schemas.TransactionItem(
+            id=txn.id,
+            amount_cents=txn.amount_cents,
+            protega_fee_cents=txn.protega_fee_cents if txn.protega_fee_cents is not None else 0,
+            currency=txn.currency,
+            status=txn.status.value,
+            created_at=txn.created_at,
+            merchant_ref=txn.merchant_ref
+        ))
+    
+    return schemas.TransactionsListResponse(items=items, total=total)
 
 
 @router.get(
