@@ -31,11 +31,11 @@ export default function CustomerLogin() {
         throw new Error('No biometric credential found. Please enroll first.');
       }
 
+      // Verify biometric locally first
       await verifyBiometric(storedCredential);
-      setFingerprint(storedCredential);
       
-      // Identify user by fingerprint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/identify-user`, {
+      // Use new biometric login endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/biometric-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,24 +46,17 @@ export default function CustomerLogin() {
       });
 
       if (!response.ok) {
-        throw new Error('Could not identify customer');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Fingerprint not recognized');
       }
 
       const data = await response.json();
       
-      // Store customer ID and user info in session
+      // Store JWT token and user info
       if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_token', data.access_token);
         localStorage.setItem('customer_id', data.user_id.toString());
         localStorage.setItem('protega_user_id', data.user_id.toString());
-        if (data.email) {
-          localStorage.setItem('customer_email', data.email);
-        }
-        if (data.full_name) {
-          localStorage.setItem('customer_name', data.full_name);
-        }
-        if (data.phone) {
-          localStorage.setItem('customer_phone', data.phone);
-        }
       }
 
       // Redirect to customer profile
@@ -80,13 +73,13 @@ export default function CustomerLogin() {
     setError('');
 
     try {
-      // Manual fingerprint entry
+      // Manual fingerprint entry - FOR DEVELOPMENT ONLY
       if (!fingerprint.trim()) {
-        throw new Error('Please enter your fingerprint identifier');
+        throw new Error('Please scan your fingerprint with Touch ID');
       }
 
-      // Identify user by fingerprint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/identify-user`, {
+      // Use new biometric login endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/biometric-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,24 +90,17 @@ export default function CustomerLogin() {
       });
 
       if (!response.ok) {
-        throw new Error('Could not identify customer');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Fingerprint not recognized');
       }
 
       const data = await response.json();
       
-      // Store customer ID and user info in session
+      // Store JWT token
       if (typeof window !== 'undefined') {
+        localStorage.setItem('auth_token', data.access_token);
         localStorage.setItem('customer_id', data.user_id.toString());
         localStorage.setItem('protega_user_id', data.user_id.toString());
-        if (data.email) {
-          localStorage.setItem('customer_email', data.email);
-        }
-        if (data.full_name) {
-          localStorage.setItem('customer_name', data.full_name);
-        }
-        if (data.phone) {
-          localStorage.setItem('customer_phone', data.phone);
-        }
       }
 
       // Redirect to customer profile

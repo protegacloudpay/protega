@@ -1,5 +1,6 @@
 """Security utilities for authentication and password hashing."""
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -7,6 +8,19 @@ import bcrypt
 from jose import JWTError, jwt
 
 from protega_api.config import settings
+
+
+def hash_fingerprint(sample: str) -> str:
+    """
+    Hash the fingerprint sample with SHA-256 for secure comparison.
+    
+    Args:
+        sample: Raw fingerprint sample string
+        
+    Returns:
+        Hex-encoded SHA-256 hash
+    """
+    return hashlib.sha256(sample.encode()).hexdigest()
 
 
 def hash_password(password: str) -> str:
