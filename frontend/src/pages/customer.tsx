@@ -38,6 +38,13 @@ export default function CustomerPage() {
   const [otpCode, setOtpCode] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
+  
+  // Generate random test fingerprint
+  const generateTestFingerprint = () => {
+    const random = Math.floor(Math.random() * 10000);
+    const sample = `TEST-FINGERPRINT-${random}`;
+    setFormData({ ...formData, fingerprint_sample: sample });
+  };
 
   const handleCardTokenGenerated = (token: string) => {
     setFormData({ ...formData, stripe_token: token });
@@ -449,15 +456,24 @@ export default function CustomerPage() {
                   <p className="font-semibold text-gray-900 mb-3">
                     Scan Your Fingerprint
                   </p>
-                  <input
-                    type="text"
-                    value={formData.fingerprint_sample}
-                    onChange={(e) => setFormData({ ...formData, fingerprint_sample: e.target.value })}
-                    placeholder="Place finger on scanner (e.g., SAMPLE-FP-001)"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
-                    required
-                  />
-                  <p className="text-xs text-gray-600 mt-2">
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      value={formData.fingerprint_sample}
+                      onChange={(e) => setFormData({ ...formData, fingerprint_sample: e.target.value })}
+                      placeholder="Place finger on scanner (e.g., SAMPLE-FP-001)"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={generateTestFingerprint}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-3 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      Generate
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-600">
                     📱 In production, this would be captured by a hardware fingerprint reader
                   </p>
                 </div>
