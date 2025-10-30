@@ -40,7 +40,7 @@ except ImportError:
 # In production, store in Redis or database with TTL
 OTP_STORE: Dict[str, tuple[str, int]] = {}  # {phone: (code, expires_at_timestamp)}
 
-router = APIRouter(tags=["otp"])
+router = APIRouter(prefix="/otp", tags=["otp"])
 
 
 def send_otp(phone: str) -> str:
@@ -81,7 +81,34 @@ def send_otp(phone: str) -> str:
     return code
 
 
-@router.post("/verify-otp")
+@router.post("/send")
+async def send_otp_endpoint(data: dict):
+    """
+    Send OTP code to phone number for verification.
+    
+    Args:
+        data: JSON body with 'phone'
+        
+    Returns:
+        Success message
+    """
+    phone = data.get("phone")
+    
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone is required")
+    
+    # Send OTP
+    code = send_otp(phone)
+    
+    return {
+        "status": "sent",
+        "message": f"Verification code sent to {phone}",
+        "phone": phone,
+        "code_preview": f"***{code[-2:]}" if twilio_client else code  # Only show in dev
+    }
+
+
+@router.post("/verify")
 async def verify_otp(data: dict, db: Annotated[Session, Depends(get_db)]):
     """
     Verify OTP code and complete enrollment if flagged enrollments exist.

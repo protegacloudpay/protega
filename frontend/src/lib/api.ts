@@ -117,6 +117,15 @@ export interface EnrollResponse {
   message: string;
 }
 
+// OTP API
+export async function sendOTP(phone: string): Promise<{ status: string; message: string; code_preview?: string }> {
+  return apiPost('/otp/send', { phone });
+}
+
+export async function verifyOTP(phone: string, code: string): Promise<{ status: string; message: string }> {
+  return apiPost('/otp/verify', { phone, code });
+}
+
 export async function enrollUser(data: EnrollRequest): Promise<EnrollResponse> {
   return apiRequest<EnrollResponse>('/enroll', {
     method: 'POST',

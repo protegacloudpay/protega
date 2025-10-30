@@ -16,6 +16,7 @@ class EnrollRequest(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
     phone: str = Field(..., min_length=10, max_length=20)
+    otp_code: Optional[str] = Field(None, min_length=6, max_length=6, description="Phone verification code")
     fingerprint_sample: str = Field(..., min_length=1, max_length=10000)
     finger_label: str = Field(
         ..., 

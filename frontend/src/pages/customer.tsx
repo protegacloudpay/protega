@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { enrollUser } from '../lib/api';
+import { enrollUser, sendOTP } from '../lib/api';
 import CardEntry from '../components/CardEntry';
 
 /**
@@ -32,10 +32,39 @@ export default function CustomerPage() {
 
   const [enrolledUserId, setEnrolledUserId] = useState<number | null>(null);
   const [cardSaved, setCardSaved] = useState(false);
+  
+  // Phone verification state
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
 
   const handleCardTokenGenerated = (token: string) => {
     setFormData({ ...formData, stripe_token: token });
     setCardSaved(true);
+  };
+
+  const handleSendOTP = async () => {
+    if (!formData.phone) {
+      setError('Please enter your phone number first');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await sendOTP(formData.phone);
+      setOtpSent(true);
+      // In development, show the code
+      if (response.code_preview && !response.code_preview.includes('***')) {
+        setOtpCode(response.code_preview);
+      }
+      alert(`Verification code sent to ${formData.phone}`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -55,6 +84,7 @@ export default function CustomerPage() {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
         phone: formData.phone,
+        otp_code: verificationCode,  // Include OTP verification code
         fingerprint_sample: formData.fingerprint_sample,
         finger_label: formData.finger_label,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
@@ -269,32 +299,70 @@ export default function CustomerPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone Number *
               </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => {
-                  // Format phone number as user types
-                  let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-                  if (value.length > 0) {
-                    if (value.length <= 1) {
-                      value = '+1' + value;
-                    } else if (value.length <= 4) {
-                      value = '+1 (' + value.slice(1);
-                    } else if (value.length <= 7) {
-                      value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4);
-                    } else {
-                      value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4, 7) + '-' + value.slice(7, 11);
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    // Format phone number as user types
+                    let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                    if (value.length > 0) {
+                      if (value.length <= 1) {
+                        value = '+1' + value;
+                      } else if (value.length <= 4) {
+                        value = '+1 (' + value.slice(1);
+                      } else if (value.length <= 7) {
+                        value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4);
+                      } else {
+                        value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4, 7) + '-' + value.slice(7, 11);
+                      }
                     }
-                  }
-                  setFormData({ ...formData, phone: value });
-                }}
-                placeholder="+1 (555) 123-4567"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                required
-              />
+                    setFormData({ ...formData, phone: value });
+                  }}
+                  placeholder="+1 (555) 123-4567"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleSendOTP}
+                  disabled={loading || !formData.phone || otpSent}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  {otpSent ? '✓ Sent' : 'Send Code'}
+                </button>
+              </div>
               <p className="text-xs text-gray-500 mt-1">
-                Format: +1 (xxx) xxx-xxxx
+                Format: +1 (xxx) xxx-xxxx - We'll send a verification code to verify your number
               </p>
+              
+              {/* OTP Code Input */}
+              {otpSent && (
+                <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                  <label className="block text-sm font-medium text-blue-900 mb-2">
+                    Enter Verification Code *
+                  </label>
+                  {otpCode && (
+                    <div className="mb-2 p-2 bg-white rounded border border-blue-300">
+                      <p className="text-xs text-blue-700 font-mono">
+                        📱 Dev Code: {otpCode}
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="Enter 6-digit code"
+                    className="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
+                    maxLength={6}
+                    required
+                  />
+                  <p className="text-xs text-blue-700 mt-2">
+                    Check your SMS for the verification code (valid for 5 minutes)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Fingerprint Registration */}

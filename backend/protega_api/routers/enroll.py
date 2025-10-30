@@ -56,6 +56,45 @@ def enroll_user(
     logger.info(f"Enrollment request for email: {request.email}, phone: {normalized_phone}")
     logger.info(f"Raw phone: '{request.phone}', Normalized phone: '{normalized_phone}'")
     
+    # Phone verification check
+    if normalized_phone:
+        from protega_api.otp import OTP_STORE, send_otp
+        import time
+        
+        # Check if OTP code is provided
+        if request.otp_code:
+            # Verify OTP
+            otp_record = OTP_STORE.get(normalized_phone)
+            if not otp_record:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No verification code requested for this phone number. Please request a code first."
+                )
+            
+            code, expires = otp_record
+            if int(time.time()) > expires:
+                del OTP_STORE[normalized_phone]
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Verification code expired. Please request a new one."
+                )
+            
+            if request.otp_code != code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid verification code. Please try again."
+                )
+            
+            # OTP verified - remove from store
+            del OTP_STORE[normalized_phone]
+            logger.info(f"Phone {normalized_phone} verified with OTP")
+        else:
+            # No OTP provided - require verification
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone verification required. Please request an OTP code first using /otp/send endpoint."
+            )
+    
     # Step 0: Check for duplicate phone number across ALL users
     existing_user_by_phone = db.query(User).filter(User.phone == normalized_phone).first()
     if existing_user_by_phone:
@@ -85,15 +124,17 @@ def enroll_user(
                     f"Please use your original phone number or contact support."
                 )
             )
-        # Update phone if not already set
+        # Update phone if not already set and mark as verified
         if not user.phone and normalized_phone:
             user.phone = normalized_phone
+            user.phone_verified = True  # Phone verified via OTP
     else:
-        # Create new user
+        # Create new user with verified phone
         user = User(
             email=request.email,
             full_name=request.full_name,
-            phone=normalized_phone
+            phone=normalized_phone,
+            phone_verified=True if normalized_phone else False  # Phone verified via OTP
         )
         db.add(user)
         db.flush()  # Get user ID without committing
