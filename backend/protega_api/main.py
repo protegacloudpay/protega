@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from protega_api.config import settings
 from protega_api.db import check_db_connection
-from protega_api.routers import enroll, health, merchant, pay, payment_methods, websocket, customers, auth
+from protega_api.routers import enroll, health, merchant, pay, payment_methods, websocket, customers, auth, charges
 from protega_api import otp
 from protega_api.routers import admin
 from protega_api import compliance
@@ -87,6 +87,7 @@ app.include_router(auth.router)
 app.include_router(enroll.router)
 app.include_router(pay.router)
 app.include_router(merchant.router)
+app.include_router(charges.router)
 app.include_router(payment_methods.router, tags=["payment-methods"])
 app.include_router(customers.router)
 app.include_router(websocket.router)

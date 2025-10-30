@@ -335,3 +335,142 @@ def delete_payment_method(
             detail=f"Failed to delete payment method: {str(e)}"
         )
 
+
+# Customer Charge Acceptance Endpoints
+@router.get("/customer/charge/{charge_id}")
+def get_charge_details(
+    charge_id: str,
+    db: Annotated[Session, Depends(get_db)]
+):
+    """
+    Get charge details and user's payment methods.
+    Used by customer acceptance terminal.
+    """
+    # Find the pending transaction by charge_id
+    transaction = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.metadata['charge_id'].astext == charge_id,
+            models.Transaction.status == 'pending'
+        )
+        .first()
+    )
+    
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Charge not found or already processed"
+        )
+    
+    # Get merchant info
+    merchant = db.query(models.Merchant).filter(models.Merchant.id == transaction.merchant_id).first()
+    
+    # For now, return all payment methods (in real scenario, you'd identify user first)
+    # This is a placeholder - you'd want to get user from session or charge metadata
+    all_payment_methods = db.query(models.PaymentMethod).all()
+    
+    payment_methods_list = [
+        {
+            "id": pm.id,
+            "provider": pm.provider,
+            "last4": pm.last4,
+            "brand": pm.brand,
+            "expiry_month": pm.expiry_month,
+            "expiry_year": pm.expiry_year,
+            "is_default": pm.is_default
+        }
+        for pm in all_payment_methods
+    ]
+    
+    return {
+        "charge_id": charge_id,
+        "amount_cents": transaction.amount_cents,
+        "description": transaction.description,
+        "merchant_name": merchant.name if merchant else "Unknown Merchant",
+        "status": transaction.status,
+        "payment_methods": payment_methods_list
+    }
+
+
+@router.post("/customer/charge/{charge_id}/accept")
+def accept_charge(
+    charge_id: str,
+    request: dict,  # {"payment_method_id": int}
+    db: Annotated[Session, Depends(get_db)]
+):
+    """
+    Accept a charge and process payment.
+    """
+    payment_method_id = request.get("payment_method_id")
+    if not payment_method_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="payment_method_id is required"
+        )
+    
+    # Find the pending transaction
+    transaction = (
+        db.query(models.Transaction)
+        .filter(
+            models.Transaction.metadata['charge_id'].astext == charge_id,
+            models.Transaction.status == 'pending'
+        )
+        .first()
+    )
+    
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Charge not found or already processed"
+        )
+    
+    # Get payment method
+    payment_method = db.query(models.PaymentMethod).filter(models.PaymentMethod.id == payment_method_id).first()
+    if not payment_method:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment method not found"
+        )
+    
+    # Process payment via Stripe
+    try:
+        from protega_api.adapters.payments import charge
+        
+        result = charge(
+            amount_cents=transaction.amount_cents,
+            currency=transaction.currency,
+            customer_id=payment_method.user.stripe_customer_id,
+            payment_method_provider_ref=payment_method.provider_ref
+        )
+        
+        # Update transaction
+        transaction.user_id = payment_method.user_id
+        transaction.payment_method_id = payment_method.id
+        transaction.status = result.status
+        transaction.provider_transaction_id = result.provider_transaction_id
+        transaction.paid_at = datetime.utcnow()
+        transaction.metadata = {
+            **transaction.metadata,
+            "accepted_at": datetime.utcnow().isoformat(),
+            "payment_intent_id": result.payment_intent_id
+        }
+        
+        db.commit()
+        
+        logger.info(f"Charge {charge_id} accepted and paid with payment method {payment_method_id}")
+        
+        return {
+            "status": "success",
+            "transaction_id": transaction.id,
+            "amount_cents": transaction.amount_cents,
+            "message": "Payment processed successfully"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to process charge {charge_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process payment: {str(e)}"
+        )
+

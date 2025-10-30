@@ -202,13 +202,15 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Made nullable for pending charges
     amount_cents = Column(Integer, nullable=False)  # Base transaction amount (merchant's amount)
     protega_fee_cents = Column(Integer, default=0, nullable=False)  # Protega's revenue: 0.25% + $0.30
     currency = Column(String(3), nullable=False, default="usd")
-    status = Column(Enum(TransactionStatus), nullable=False, index=True)
+    status = Column(String(50), nullable=False, index=True, default="pending")  # Changed to String for flexibility
     processor_txn_id = Column(String(255), index=True)  # Stripe payment intent ID
     merchant_ref = Column(String(255))  # Optional merchant reference
+    description = Column(String(500))  # Transaction description
+    metadata = Column(JSON, nullable=True)  # Flexible metadata for additional data
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships
