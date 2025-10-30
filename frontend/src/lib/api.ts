@@ -26,19 +26,27 @@ async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...fetchOptions,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...fetchOptions,
+      headers,
+    });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({
-      detail: response.statusText,
-    }));
-    throw new Error(error.detail || 'API request failed');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({
+        detail: response.statusText,
+      }));
+      throw new Error(error.detail || 'API request failed');
+    }
+
+    return response.json();
+  } catch (err: any) {
+    // Handle network errors, CORS errors, etc.
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      throw new Error(`Network error: Cannot connect to ${API_BASE_URL}. Please check your connection and try again.`);
+    }
+    throw err;
   }
-
-  return response.json();
 }
 
 // ============================================================================
