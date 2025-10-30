@@ -49,14 +49,16 @@ def enroll_user(
     Returns:
         Enrollment confirmation with masked email and payment details
     """
-    logger.info(f"Enrollment request for email: {request.email}, phone: {request.phone}")
-    logger.info(f"Checking for existing phone number: {request.phone}")
+    # Normalize phone number for consistency
+    normalized_phone = request.phone.strip() if request.phone else None
+    logger.info(f"Enrollment request for email: {request.email}, phone: {normalized_phone}")
+    logger.info(f"Raw phone: '{request.phone}', Normalized phone: '{normalized_phone}'")
     
     # Step 0: Check for duplicate phone number across ALL users
-    existing_user_by_phone = db.query(User).filter(User.phone == request.phone).first()
+    existing_user_by_phone = db.query(User).filter(User.phone == normalized_phone).first()
     if existing_user_by_phone:
-        logger.error(f"DUPLICATE PHONE DETECTED: Phone {request.phone} already exists for user {existing_user_by_phone.id}")
-        logger.warning(f"Phone number {request.phone} already registered for user: {existing_user_by_phone.id}")
+        logger.error(f"DUPLICATE PHONE DETECTED: Phone {normalized_phone} already exists for user {existing_user_by_phone.id}")
+        logger.warning(f"Phone number {normalized_phone} already registered for user: {existing_user_by_phone.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
@@ -72,8 +74,8 @@ def enroll_user(
     if user:
         logger.info(f"User already exists: {user.id}")
         # Check if this existing user already has a different phone
-        if user.phone and user.phone != request.phone:
-            logger.warning(f"User {user.id} attempting to change phone from {user.phone} to {request.phone}")
+        if user.phone and user.phone != normalized_phone:
+            logger.warning(f"User {user.id} attempting to change phone from {user.phone} to {normalized_phone}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -82,14 +84,14 @@ def enroll_user(
                 )
             )
         # Update phone if not already set
-        if not user.phone and request.phone:
-            user.phone = request.phone
+        if not user.phone and normalized_phone:
+            user.phone = normalized_phone
     else:
         # Create new user
         user = User(
             email=request.email,
             full_name=request.full_name,
-            phone=request.phone
+            phone=normalized_phone
         )
         db.add(user)
         db.flush()  # Get user ID without committing
