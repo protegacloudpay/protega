@@ -359,6 +359,13 @@ export default function CustomerPage() {
                       }
                     }
                     setFormData({ ...formData, phone: value });
+                    // Reset verification state if phone number changed
+                    if (otpSent) {
+                      setOtpSent(false);
+                      setPhoneVerified(false);
+                      setVerificationCode('');
+                      setOtpCode('');
+                    }
                   }}
                   placeholder="+1 (555) 123-4567"
                   className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -367,7 +374,7 @@ export default function CustomerPage() {
                 <button
                   type="button"
                   onClick={handleSendOTP}
-                  disabled={loading || !formData.phone || otpSent}
+                  disabled={loading || !formData.phone}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
                 >
                   {otpSent ? '✓ Sent' : 'Send Code'}

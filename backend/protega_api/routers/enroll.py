@@ -1,5 +1,6 @@
 """User enrollment endpoints."""
 
+import hashlib
 import json
 import logging
 from typing import Annotated
@@ -157,7 +158,6 @@ def enroll_user(
     # Step 3: Secure Enclave - Encrypt and hash biometric template
     try:
         from protega_api.security_enclave import encrypt_sensitive
-        import hashlib
         
         # Get fingerprint reader (SDK or simulated)
         reader = get_fingerprint_reader()
