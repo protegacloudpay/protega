@@ -10,12 +10,22 @@ Supports multiple hardware fingerprint scanners:
 
 This module provides a unified interface for capturing real biometric templates
 and converting them to cloud-verifiable format.
+
+Features:
+- Auto-detects connected devices across platforms
+- Falls back to simulated mode when no hardware is available
+- Works seamlessly on Windows, macOS, and Linux
+- Ready for POS hardware integration
 """
 
 import base64
 import hashlib
+import json
 import logging
 import os
+import platform
+import subprocess
+import sys
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -24,8 +34,11 @@ logger = logging.getLogger(__name__)
 USE_SDK = os.getenv("USE_FINGERPRINT_SDK", "false").lower() == "true"
 SDK_DRIVER_PATH = os.getenv("SDK_DRIVER_PATH", "")
 
-# SDK selection
-FINGERPRINT_SDK = os.getenv("FINGERPRINT_SDK", "simulated")  # digitalpersona, futronic, verifinger, simulated
+# SDK selection (can be auto-detected)
+FINGERPRINT_SDK = os.getenv("FINGERPRINT_SDK", "auto")  # auto, digitalpersona, futronic, verifinger, simulated
+
+# Platform detection
+OS_TYPE = platform.system().lower()
 
 
 class FingerprintReader:
@@ -37,12 +50,94 @@ class FingerprintReader:
     """
     
     def __init__(self):
+        self.os_type = OS_TYPE
         self.sdk_type = FINGERPRINT_SDK
         self.driver_loaded = False
         self._initialize_driver()
     
+    def _detect_device(self) -> str:
+        """
+        Auto-detect connected fingerprint reader by vendor/product ID.
+        
+        Returns the device type string or "simulated" if no device found.
+        """
+        try:
+            if self.os_type.startswith("win"):
+                # Windows: Use wmic to detect PnP devices
+                try:
+                    out = subprocess.check_output(
+                        "wmic path Win32_PnPEntity get Name",
+                        shell=True,
+                        timeout=5
+                    )
+                    if b"DigitalPersona" in out:
+                        logger.info("Detected DigitalPersona device")
+                        return "digitalpersona"
+                    if b"Futronic" in out:
+                        logger.info("Detected Futronic device")
+                        return "futronic"
+                except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                    pass
+                    
+            elif self.os_type == "darwin":
+                # macOS: Use system_profiler
+                try:
+                    out = subprocess.check_output(
+                        "system_profiler SPUSBDataType",
+                        shell=True,
+                        timeout=5
+                    )
+                    if b"DigitalPersona" in out:
+                        logger.info("Detected DigitalPersona device")
+                        return "digitalpersona"
+                    if b"Futronic" in out:
+                        logger.info("Detected Futronic device")
+                        return "futronic"
+                except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                    pass
+                    
+            elif self.os_type == "linux":
+                # Linux: Use lsusb
+                try:
+                    out = subprocess.check_output(
+                        "lsusb",
+                        shell=True,
+                        timeout=5
+                    )
+                    if b"DigitalPersona" in out:
+                        logger.info("Detected DigitalPersona device")
+                        return "digitalpersona"
+                    if b"Futronic" in out:
+                        logger.info("Detected Futronic device")
+                        return "futronic"
+                except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+                    pass
+            
+            logger.info("No fingerprint device detected, using simulated mode")
+            return "simulated"
+            
+        except Exception as e:
+            logger.warning(f"Device detection failed: {e}, using simulated mode")
+            return "simulated"
+    
+    def _driver_path(self) -> str:
+        """Get the platform-specific driver path."""
+        base = SDK_DRIVER_PATH or "/opt/fingerprint_drivers"
+        
+        if self.os_type.startswith("win"):
+            return os.path.join(base, "windows")
+        elif self.os_type == "darwin":
+            return os.path.join(base, "macos")
+        else:
+            return os.path.join(base, "linux")
+    
     def _initialize_driver(self):
         """Initialize the appropriate SDK driver."""
+        # Auto-detect if SDK type is "auto"
+        if self.sdk_type == "auto":
+            self.sdk_type = self._detect_device()
+            logger.info(f"Auto-detected SDK type: {self.sdk_type}")
+        
         if not USE_SDK or self.sdk_type == "simulated":
             logger.info("Using simulated fingerprint capture (for development)")
             return
@@ -56,6 +151,7 @@ class FingerprintReader:
                 self._init_verifinger()
             else:
                 logger.warning(f"Unknown SDK type: {self.sdk_type}, falling back to simulation")
+                self.sdk_type = "simulated"
         except Exception as e:
             logger.error(f"Failed to initialize {self.sdk_type} SDK: {e}")
             logger.warning("Falling back to simulated capture")
@@ -151,15 +247,32 @@ class FingerprintReader:
             Base64-encoded template or None if capture fails
         """
         try:
-            # DigitalPersona SDK call
-            # result = self.dp.DPFPCapture(...)
-            # template_bytes = result.template
-            # template_b64 = base64.b64encode(template_bytes).decode()
-            # return template_b64
+            # Try calling SDK driver executable
+            driver_exe = os.path.join(self._driver_path(), "dp_capture.exe" if self.os_type.startswith("win") else "dp_capture")
             
-            logger.warning("DigitalPersona capture not yet implemented")
+            if os.path.exists(driver_exe):
+                output = subprocess.check_output(
+                    [driver_exe],
+                    timeout=30,
+                    stderr=subprocess.PIPE
+                )
+                result = json.loads(output.decode())
+                template = result.get("template")
+                
+                if template:
+                    # Already base64 encoded from driver
+                    return template
+            else:
+                logger.warning(f"DigitalPersona driver not found at: {driver_exe}")
+                logger.warning("Falling back to simulated capture")
+                return None
+            
+        except subprocess.TimeoutExpired:
+            logger.error("DigitalPersona capture timed out after 30 seconds")
             return None
-            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse DigitalPersona output: {e}")
+            return None
         except Exception as e:
             logger.error(f"DigitalPersona capture failed: {e}")
             return None
@@ -172,15 +285,31 @@ class FingerprintReader:
             Base64-encoded template or None if capture fails
         """
         try:
-            # Futronic SDK call
-            # result = self.ftr.FtrCaptureFrame(self.ftr_handle, ...)
-            # template_bytes = result.template
-            # template_b64 = base64.b64encode(template_bytes).decode()
-            # return template_b64
+            # Try calling SDK driver executable
+            driver_exe = os.path.join(self._driver_path(), "ftr_capture.exe" if self.os_type.startswith("win") else "ftr_capture")
             
-            logger.warning("Futronic capture not yet implemented")
+            if os.path.exists(driver_exe):
+                output = subprocess.check_output(
+                    [driver_exe],
+                    timeout=30,
+                    stderr=subprocess.PIPE
+                )
+                result = json.loads(output.decode())
+                template = result.get("template")
+                
+                if template:
+                    return template
+            else:
+                logger.warning(f"Futronic driver not found at: {driver_exe}")
+                logger.warning("Falling back to simulated capture")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error("Futronic capture timed out after 30 seconds")
             return None
-            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Futronic output: {e}")
+            return None
         except Exception as e:
             logger.error(f"Futronic capture failed: {e}")
             return None
@@ -193,15 +322,31 @@ class FingerprintReader:
             Base64-encoded template or None if capture fails
         """
         try:
-            # VeriFinger SDK call
-            # template = NTemplate()
-            # capture_result = scanner.Capture(template)
-            # template_b64 = base64.b64encode(template.serialize()).decode()
-            # return template_b64
+            # Try calling SDK driver executable
+            driver_exe = os.path.join(self._driver_path(), "vf_capture.exe" if self.os_type.startswith("win") else "vf_capture")
             
-            logger.warning("VeriFinger capture not yet implemented")
+            if os.path.exists(driver_exe):
+                output = subprocess.check_output(
+                    [driver_exe],
+                    timeout=30,
+                    stderr=subprocess.PIPE
+                )
+                result = json.loads(output.decode())
+                template = result.get("template")
+                
+                if template:
+                    return template
+            else:
+                logger.warning(f"VeriFinger driver not found at: {driver_exe}")
+                logger.warning("Falling back to simulated capture")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error("VeriFinger capture timed out after 30 seconds")
             return None
-            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse VeriFinger output: {e}")
+            return None
         except Exception as e:
             logger.error(f"VeriFinger capture failed: {e}")
             return None
