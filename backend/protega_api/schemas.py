@@ -15,6 +15,7 @@ class EnrollRequest(BaseModel):
     
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
+    phone: str = Field(..., min_length=10, max_length=20)
     fingerprint_sample: str = Field(..., min_length=1, max_length=10000)
     consent_text: str = Field(..., min_length=10)
     stripe_payment_method_token: str = Field(..., min_length=1)

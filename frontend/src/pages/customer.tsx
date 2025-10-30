@@ -105,7 +105,7 @@ export default function CustomerPage() {
       const enrollData = {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
-        phone_number: formData.phone,
+        phone: formData.phone,
         fingerprint_sample: formData.fingerprint_sample,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
         stripe_payment_method_token: formData.stripe_token.trim(),
@@ -323,13 +323,28 @@ export default function CustomerPage() {
               <input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  // Format phone number as user types
+                  let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                  if (value.length > 0) {
+                    if (value.length <= 1) {
+                      value = '+1' + value;
+                    } else if (value.length <= 4) {
+                      value = '+1 (' + value.slice(1);
+                    } else if (value.length <= 7) {
+                      value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4);
+                    } else {
+                      value = '+1 (' + value.slice(1, 4) + ') ' + value.slice(4, 7) + '-' + value.slice(7, 11);
+                    }
+                  }
+                  setFormData({ ...formData, phone: value });
+                }}
                 placeholder="+1 (555) 123-4567"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
-                Used for account verification and payment confirmations
+                Format: +1 (xxx) xxx-xxxx
               </p>
             </div>
 

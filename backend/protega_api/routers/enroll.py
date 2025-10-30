@@ -49,18 +49,35 @@ def enroll_user(
     Returns:
         Enrollment confirmation with masked email and payment details
     """
-    logger.info(f"Enrollment request for email: {request.email}")
+    logger.info(f"Enrollment request for email: {request.email}, phone: {request.phone}")
+    
+    # Step 0: Check for duplicate phone number
+    existing_user_by_phone = db.query(User).filter(User.phone == request.phone).first()
+    if existing_user_by_phone:
+        logger.warning(f"Phone number {request.phone} already registered for user: {existing_user_by_phone.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "This phone number is already registered to another account. "
+                "Each phone number can only be associated with one account. "
+                "Please use a different phone number or contact support."
+            )
+        )
     
     # Step 1: Find or create user
     user = db.query(User).filter(User.email == request.email).first()
     
     if user:
         logger.info(f"User already exists: {user.id}")
+        # Update phone if provided
+        if request.phone:
+            user.phone = request.phone
     else:
         # Create new user
         user = User(
             email=request.email,
-            full_name=request.full_name
+            full_name=request.full_name,
+            phone=request.phone
         )
         db.add(user)
         db.flush()  # Get user ID without committing
