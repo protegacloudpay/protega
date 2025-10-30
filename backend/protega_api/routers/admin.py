@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from protega_api.db import get_db
-from protega_api.models import FlaggedEnroll, User, BiometricTemplate, ProtegaIdentity
+from protega_api.models import FlaggedEnroll, User, BiometricTemplate, ProtegaIdentity, FraudAlert
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -194,3 +194,80 @@ async def resolve_flag(
         logger.error(f"Failed to resolve flag {flag_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+@router.get("/fraud-alerts")
+def list_fraud_alerts(
+    status: str = "pending_review",
+    db: Annotated[Session, Depends(get_db)] = None
+):
+    """
+    List all fraud alerts detected by background scanner.
+    
+    Args:
+        status: Filter by alert status (pending_review, verified_false, confirmed_duplicate, dismissed)
+        
+    Returns:
+        List of fraud alert records
+    """
+    alerts = db.query(FraudAlert).filter(
+        FraudAlert.status == status
+    ).order_by(FraudAlert.created_at.desc()).all()
+    
+    return [
+        {
+            "id": alert.id,
+            "user_id": alert.user_id,
+            "template_id": alert.template_id,
+            "match_user_id": alert.match_user_id,
+            "match_template_id": alert.match_template_id,
+            "match_score": alert.match_score,
+            "status": alert.status,
+            "notes": alert.notes,
+            "reviewed_by": alert.reviewed_by,
+            "reviewed_at": alert.reviewed_at.isoformat() if alert.reviewed_at else None,
+            "created_at": alert.created_at.isoformat(),
+        }
+        for alert in alerts
+    ]
+
+
+@router.post("/fraud-alerts/{alert_id}/review")
+def review_fraud_alert(
+    alert_id: int,
+    action: str,  # confirmed, dismissed, verified_false
+    notes: str = None,
+    db: Annotated[Session, Depends(get_db)] = None
+):
+    """
+    Review and resolve a fraud alert.
+    
+    Args:
+        alert_id: ID of the fraud alert
+        action: Resolution action (confirmed, dismissed, verified_false)
+        notes: Optional notes from admin
+    """
+    alert = db.query(FraudAlert).filter(FraudAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Fraud alert not found")
+    
+    if action == "confirmed":
+        alert.status = "confirmed_duplicate"
+    elif action == "dismissed":
+        alert.status = "dismissed"
+    elif action == "verified_false":
+        alert.status = "verified_false"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+    
+    alert.notes = notes
+    alert.reviewed_by = "admin"  # TODO: Get actual admin user
+    alert.reviewed_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return {
+        "status": "success",
+        "alert_id": alert.id,
+        "new_status": alert.status
+    }
