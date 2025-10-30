@@ -120,7 +120,10 @@ export default function CustomerPage() {
         // Save for quick access
         if (typeof window !== 'undefined') {
           localStorage.setItem('protega_user_id', response.user_id.toString());
-          localStorage.setItem('customer_id', response.user_id.toString()); // Also save as customer_id for profile page
+          localStorage.setItem('customer_id', response.user_id.toString());
+          localStorage.setItem('customer_email', formData.email);
+          localStorage.setItem('customer_phone', formData.phone);
+          localStorage.setItem('customer_name', `${formData.first_name} ${formData.last_name}`);
           localStorage.setItem('protega_used_touchid', useTouchID ? 'true' : 'false');
         }
       }
