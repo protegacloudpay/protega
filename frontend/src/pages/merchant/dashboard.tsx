@@ -180,37 +180,48 @@ export default function MerchantDashboard() {
           </div>
 
           {/* Quick Actions Panel */}
-          <div className="card mb-8 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">🚀 Quick Actions</h3>
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  User ID
-                </label>
-                <input
-                  type="number"
-                  className="input"
-                  value={userIdInput}
-                  onChange={(e) => setUserIdInput(e.target.value)}
-                  placeholder="Enter user ID (e.g., 1)"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleManagePaymentMethods();
-                    }
-                  }}
-                />
-              </div>
-              <button
-                onClick={handleManagePaymentMethods}
-                disabled={!userIdInput || isNaN(parseInt(userIdInput))}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Manage Payment Methods →
-              </button>
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="card bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">👥 Customer Management</h3>
+              <p className="text-gray-600 mb-4 text-sm">
+                View all your customers and their transaction history
+              </p>
+              <Link href="/merchant/customers">
+                <button className="w-full btn-primary">
+                  View All Customers →
+                </button>
+              </Link>
             </div>
-            <p className="text-xs text-gray-600 mt-2">
-              💡 Enter a user ID to view and manage their saved payment methods
-            </p>
+
+            <div className="card bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">💳 Manage Payment Methods</h3>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    className="input"
+                    value={userIdInput}
+                    onChange={(e) => setUserIdInput(e.target.value)}
+                    placeholder="Enter user ID"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleManagePaymentMethods();
+                      }
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleManagePaymentMethods}
+                  disabled={!userIdInput || isNaN(parseInt(userIdInput))}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  Manage →
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">
+                Enter a user ID to manage their payment methods
+              </p>
+            </div>
           </div>
 
           {/* Transactions Table */}

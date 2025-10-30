@@ -21,7 +21,7 @@ export default function Home() {
               <Link href="/merchant/login" className="text-protega-teal hover:text-protega-teal-dark transition-colors">
                 Merchant Login
               </Link>
-              <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-protega-teal transition-colors">
+              <a href="https://protega-api.fly.dev/docs" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-protega-teal transition-colors">
                 API Docs
               </a>
             </div>
@@ -41,113 +41,150 @@ export default function Home() {
           {/* Customer Section */}
           <div className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">👤</span> For Customers
+              👤 For Customers
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <Link href="/customer" className="block">
-                <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-200">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">✨ Customer App</h3>
-                  <p className="text-gray-600 mb-4">
-                    Clean interface to enroll and manage your payment cards. One-time setup!
-                  </p>
-                  <span className="text-teal-600 font-semibold">
-                    Get Started →
-                  </span>
+            <div className="grid md:grid-cols-1 gap-6">
+              <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-200 p-8">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-16 h-16 bg-protega-teal rounded-xl flex items-center justify-center">
+                    <span className="text-3xl">👆</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-2">Customer Portal</h3>
+                    <p className="text-gray-600 mb-4 text-lg">
+                      Create your account and register your fingerprint for biometric payments. One-time setup allows you to pay anywhere with just your finger.
+                    </p>
+                    <div className="flex flex-wrap gap-3 mb-4">
+                      <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                        Secure Biometric Authentication
+                      </span>
+                      <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                        Multiple Payment Methods
+                      </span>
+                      <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                        Universal Enrollment
+                      </span>
+                    </div>
+                    <div className="flex gap-3">
+                      <Link href="/customer" className="flex-1 btn-primary text-center">
+                        Enroll Now →
+                      </Link>
+                      <Link href="/customer/login" className="flex-1 px-6 py-3 bg-white border-2 border-teal-600 text-teal-600 hover:bg-teal-50 rounded-lg font-semibold transition-colors text-center">
+                        Customer Login
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </Link>
-
-              <Link href="/enroll" className="block">
-                <div className="card hover:shadow-xl transition-shadow">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">🔐 Enroll (Advanced)</h3>
-                  <p className="text-gray-600 mb-4">
-                    Advanced enrollment interface with all options visible.
-                  </p>
-                  <span className="text-protega-teal font-semibold">
-                    Advanced Mode →
-                  </span>
-                </div>
-              </Link>
-
-              <Link href="/kiosk" className="block">
-                <div className="card hover:shadow-xl transition-shadow">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">💳 Test Payment</h3>
-                  <p className="text-gray-600 mb-4">
-                    Try making a payment with your enrolled fingerprint.
-                  </p>
-                  <span className="text-protega-teal font-semibold">
-                    Make Payment →
-                  </span>
-                </div>
-              </Link>
+              </div>
             </div>
           </div>
 
           {/* Merchant Section */}
           <div className="mb-12">
             <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">🏪</span> For Merchants
+              🏪 For Merchants
             </h2>
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 gap-6">
               <Link href="/terminal" className="block">
-                <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">💻 Payment Terminal</h3>
-                  <p className="text-gray-600 mb-4">
-                    Simple terminal for processing customer payments. Production-ready UI.
-                  </p>
-                  <span className="text-blue-600 font-semibold">
-                    Open Terminal →
-                  </span>
-                </div>
-              </Link>
-
-              <Link href="/kiosk-demo" className="block">
-                <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">🖥️ Kiosk Mode</h3>
-                  <p className="text-gray-600 mb-4">
-                    Fullscreen demo mode for pilots and presentations. Auto-reset after payment.
-                  </p>
-                  <span className="text-purple-600 font-semibold">
-                    Launch Kiosk →
-                  </span>
+                <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 p-8">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
+                      <span className="text-3xl">💳</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">Payment Terminal</h3>
+                      <p className="text-gray-600 mb-4 text-lg">
+                        Accept biometric payments from enrolled customers. Process transactions quickly and securely with our point-of-sale terminal.
+                      </p>
+                      <div className="flex flex-wrap gap-3 mb-4">
+                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
+                          Instant Payments
+                        </span>
+                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
+                          Multiple Cards Support
+                        </span>
+                        <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
+                          Zero Integration
+                        </span>
+                      </div>
+                      <span className="text-blue-600 font-semibold text-lg">
+                        Open Terminal →
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </Link>
 
               <Link href="/merchant/dashboard" className="block">
-                <div className="card hover:shadow-xl transition-shadow">
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">📊 Dashboard</h3>
-                  <p className="text-gray-600 mb-4">
-                    View transactions, revenue, and manage your terminal.
-                  </p>
-                  <span className="text-protega-teal font-semibold">
-                    View Dashboard →
-                  </span>
+                <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-200 p-8">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-16 h-16 bg-protega-teal rounded-xl flex items-center justify-center">
+                      <span className="text-3xl">📊</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">Merchant Dashboard</h3>
+                      <p className="text-gray-600 mb-4 text-lg">
+                        View transaction history, revenue analytics, and manage your payment terminals. Monitor your business in real-time.
+                      </p>
+                      <div className="flex flex-wrap gap-3 mb-4">
+                        <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                          Transaction History
+                        </span>
+                        <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                          Revenue Analytics
+                        </span>
+                        <span className="px-3 py-1 bg-white border border-teal-200 rounded-full text-sm font-semibold text-teal-700">
+                          Customer Management
+                        </span>
+                      </div>
+                      <span className="text-protega-teal font-semibold text-lg">
+                        View Dashboard →
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </Link>
             </div>
           </div>
 
-          {/* Quick Start Guide */}
+          {/* How It Works */}
           <div className="card bg-gradient-to-r from-blue-50 to-teal-50 border-blue-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="text-2xl">🚀</span> Quick Start Guide
+            <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+              How It Works
             </h3>
-            <div className="grid md:grid-cols-2 gap-6 text-sm">
+            <div className="grid md:grid-cols-2 gap-8">
               <div>
-                <h4 className="font-semibold text-slate-900 mb-2">As a Customer:</h4>
-                <ol className="text-slate-700 space-y-1 list-decimal list-inside">
-                  <li>Go to <strong>Customer App</strong></li>
-                  <li>Enter your info and fingerprint: <code className="bg-white px-2 py-1 rounded">test123</code></li>
-                  <li>Save your Customer ID</li>
-                  <li>Done! You can now pay anywhere</li>
+                <h4 className="font-bold text-lg text-slate-900 mb-3">For Customers</h4>
+                <ol className="text-slate-700 space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold">1</span>
+                    <span>Create your account by enrolling your fingerprint and linking a payment card</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold">2</span>
+                    <span>Your biometric identity is securely stored and synced across all merchants</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold">3</span>
+                    <span>Pay anywhere with Protega by scanning your fingerprint at checkout</span>
+                  </li>
                 </ol>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900 mb-2">As a Merchant:</h4>
-                <ol className="text-slate-700 space-y-1 list-decimal list-inside">
-                  <li>Go to <strong>Merchant Login</strong> → Sign up</li>
-                  <li>Get your Terminal API Key</li>
-                  <li>Open <strong>Payment Terminal</strong></li>
-                  <li>Accept payments from enrolled customers!</li>
+                <h4 className="font-bold text-lg text-slate-900 mb-3">For Merchants</h4>
+                <ol className="text-slate-700 space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">1</span>
+                    <span>Sign up for a merchant account and get your unique Terminal API Key</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">2</span>
+                    <span>Configure your payment terminal with your API key</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">3</span>
+                    <span>Start accepting biometric payments from Protega customers instantly</span>
+                  </li>
                 </ol>
               </div>
             </div>

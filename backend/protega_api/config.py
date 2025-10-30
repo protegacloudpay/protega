@@ -31,6 +31,16 @@ class Settings(BaseSettings):
 
     # Environment
     env: str = "development"
+    
+    # Anti-fraud
+    protega_device_enroll_limit: int = 3  # Per device per 24h
+    protega_risk_otp_threshold: int = 30  # Score >= this -> require OTP
+    protega_risk_kyc_threshold: int = 60  # Score >= this -> require KYC/manual review
+    
+    # Twilio (for OTP)
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

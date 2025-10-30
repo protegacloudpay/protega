@@ -13,6 +13,7 @@ import {
 import { getAuthToken, isAuthenticated } from '@/lib/auth';
 import CardBadge from '@/components/CardBadge';
 import Confirm from '@/components/Confirm';
+import CardEntry from '@/components/CardEntry';
 
 export default function CustomerPaymentMethods() {
   const router = useRouter();
@@ -24,9 +25,11 @@ export default function CustomerPaymentMethods() {
   
   // Add new card form state
   const [showAddForm, setShowAddForm] = useState(false);
+  const [cardEntryMode, setCardEntryMode] = useState<'manual' | 'stripe'>('stripe');
   const [newCardToken, setNewCardToken] = useState('');
   const [setAsDefault, setSetAsDefault] = useState(false);
   const [addingCard, setAddingCard] = useState(false);
+  const [cardSaved, setCardSaved] = useState(false);
   
   // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -73,6 +76,11 @@ export default function CustomerPaymentMethods() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const handleCardTokenGenerated = (token: string) => {
+    setNewCardToken(token);
+    setCardSaved(true);
+  };
+
   const handleAddCard = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = getAuthToken();
@@ -89,6 +97,7 @@ export default function CustomerPaymentMethods() {
       setNewCardToken('');
       setSetAsDefault(false);
       setShowAddForm(false);
+      setCardSaved(false);
       await loadPaymentMethods();
     } catch (err: any) {
       showToast(err.message || 'Failed to add payment method', 'error');
@@ -212,24 +221,82 @@ export default function CustomerPaymentMethods() {
             <div className="card mb-6">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Add New Payment Method</h2>
               <form onSubmit={handleAddCard} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Stripe Payment Method Token
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    className="input"
-                    value={newCardToken}
-                    onChange={(e) => setNewCardToken(e.target.value)}
-                    placeholder="pm_card_visa"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Test tokens: <code className="bg-gray-100 px-1 rounded">pm_card_visa</code>,{' '}
-                    <code className="bg-gray-100 px-1 rounded">pm_card_mastercard</code>,{' '}
-                    <code className="bg-gray-100 px-1 rounded">pm_card_amex</code>
-                  </p>
+                {/* Card Entry Mode Toggle */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setCardEntryMode('stripe')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      cardEntryMode === 'stripe'
+                        ? 'bg-protega-teal text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    💳 Enter Card Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardEntryMode('manual')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                      cardEntryMode === 'manual'
+                        ? 'bg-protega-teal text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    🔑 Manual Token Entry
+                  </button>
                 </div>
+
+                {/* Stripe Card Entry Component */}
+                {cardEntryMode === 'stripe' && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {!cardSaved ? (
+                      <>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Enter card details securely using Stripe. Card information is encrypted and never stored on our servers.
+                        </p>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <CardEntry onTokenGenerated={handleCardTokenGenerated} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
+                        <div className="text-5xl mb-3">✅</div>
+                        <p className="text-lg font-bold text-green-800 mb-2">
+                          Card Saved Successfully!
+                        </p>
+                        <p className="text-sm text-green-700 mb-4">
+                          Card token: <code className="font-mono text-xs bg-white px-2 py-1 rounded border border-green-300">{newCardToken}</code>
+                        </p>
+                        <p className="text-sm text-green-600">
+                          Click "Add Card" below to complete the process
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Manual Token Entry */}
+                {cardEntryMode === 'manual' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Stripe Payment Method Token
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="input"
+                      value={newCardToken}
+                      onChange={(e) => setNewCardToken(e.target.value)}
+                      placeholder="pm_card_visa"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Test tokens: <code className="bg-gray-100 px-1 rounded">pm_card_visa</code>,{' '}
+                      <code className="bg-gray-100 px-1 rounded">pm_card_mastercard</code>,{' '}
+                      <code className="bg-gray-100 px-1 rounded">pm_card_amex</code>
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex items-center">
                   <input
@@ -258,6 +325,7 @@ export default function CustomerPaymentMethods() {
                       setShowAddForm(false);
                       setNewCardToken('');
                       setSetAsDefault(false);
+                      setCardSaved(false);
                     }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors"
                   >

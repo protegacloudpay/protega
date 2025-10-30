@@ -29,6 +29,7 @@ export default function CustomerPage() {
     first_name: '',
     last_name: '',
     email: '',
+    phone: '',
     fingerprint_sample: '',
     stripe_token: '',
   });
@@ -41,7 +42,8 @@ export default function CustomerPage() {
   const [useTouchID, setUseTouchID] = useState(false);
   
   // Card entry mode
-  const [cardEntryMode, setCardEntryMode] = useState<'manual' | 'stripe'>('stripe');
+  const [cardEntryMode, setCardEntryMode] = useState<'manual' | 'stripe'>('manual');
+  const [cardSaved, setCardSaved] = useState(false);
 
   // Check for biometric availability
   useEffect(() => {
@@ -85,8 +87,7 @@ export default function CustomerPage() {
 
   const handleCardTokenGenerated = (token: string) => {
     setFormData({ ...formData, stripe_token: token });
-    // Show success message
-    alert('Card saved! You can now complete enrollment.');
+    setCardSaved(true);
   };
 
   const handleEnroll = async (e: React.FormEvent) => {
@@ -105,6 +106,7 @@ export default function CustomerPage() {
       const enrollData = {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
+        phone_number: formData.phone,
         fingerprint_sample: formData.fingerprint_sample,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
         stripe_payment_method_token: formData.stripe_token.trim(),
@@ -311,6 +313,23 @@ export default function CustomerPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="+1 (555) 123-4567"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Used for account verification and payment confirmations
+              </p>
+            </div>
+
             {/* Fingerprint */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -403,14 +422,26 @@ export default function CustomerPage() {
                 {/* Stripe Card Entry Component */}
                 {cardEntryMode === 'stripe' && (
                   <div>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Enter your card details securely using Stripe. Your card information is encrypted and never stored on our servers.
-                    </p>
-                    <CardEntry onTokenGenerated={handleCardTokenGenerated} />
-                    {formData.stripe_token && (
-                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          ✅ Card saved! Token: <code className="font-mono text-xs bg-white px-2 py-1 rounded">{formData.stripe_token}</code>
+                    {!cardSaved ? (
+                      <>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Enter your card details securely using Stripe. Your card information is encrypted and never stored on our servers.
+                        </p>
+                        <div className="relative">
+                          <CardEntry onTokenGenerated={handleCardTokenGenerated} />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
+                        <div className="text-5xl mb-3">✅</div>
+                        <p className="text-lg font-bold text-green-800 mb-2">
+                          Card Saved Successfully!
+                        </p>
+                        <p className="text-sm text-green-700 mb-4">
+                          Your card token: <code className="font-mono text-xs bg-white px-2 py-1 rounded border border-green-300">{formData.stripe_token}</code>
+                        </p>
+                        <p className="text-sm text-green-600">
+                          You can now complete enrollment by filling in your information above and clicking "Enroll Now"
                         </p>
                       </div>
                     )}

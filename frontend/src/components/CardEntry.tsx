@@ -58,6 +58,9 @@ function CardEntryForm({ onTokenGenerated }: CardEntryProps) {
       // Pass the payment method ID to the parent
       onTokenGenerated(paymentMethod.id);
       
+      // Don't redirect, just stay on the page
+      setLoading(false);
+      
     } catch (err: any) {
       setError(err.message || 'An error occurred');
       setLoading(false);
@@ -81,7 +84,7 @@ function CardEntryForm({ onTokenGenerated }: CardEntryProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="space-y-4">
       <div className="p-4 border-2 border-gray-300 rounded-lg bg-white">
         <CardElement options={cardElementOptions} />
       </div>
@@ -93,7 +96,8 @@ function CardEntryForm({ onTokenGenerated }: CardEntryProps) {
       )}
       
       <button
-        type="submit"
+        type="button"
+        onClick={handleSubmit}
         disabled={!stripe || loading}
         className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg"
       >
@@ -105,7 +109,7 @@ function CardEntryForm({ onTokenGenerated }: CardEntryProps) {
           🔒 <strong>Secure:</strong> Your card details are processed directly by Stripe. We never see your full card number.
         </p>
       </div>
-    </form>
+    </div>
   );
 }
 

@@ -92,6 +92,7 @@ export async function apiDelete<T>(path: string, token?: string): Promise<T> {
 export interface EnrollRequest {
   email: string;
   full_name: string;
+  phone_number?: string;
   fingerprint_sample: string;
   consent_text: string;
   stripe_payment_method_token: string;
@@ -292,5 +293,28 @@ export async function deletePaymentMethod(
     `/users/${userId}/payment-methods/${paymentMethodId}`,
     token
   );
+}
+
+// ============================================================================
+// Customers API
+// ============================================================================
+
+export interface CustomerListItem {
+  customer_id: number;
+  masked_name: string;
+  masked_email?: string;
+  transaction_count: number;
+  total_spent_cents: number;
+  first_seen: string;
+  last_seen: string;
+}
+
+export interface CustomerListResponse {
+  items: CustomerListItem[];
+  total: number;
+}
+
+export async function listCustomers(token: string): Promise<CustomerListResponse> {
+  return apiGet<CustomerListResponse>('/customers', token);
 }
 

@@ -30,6 +30,17 @@ class TransactionStatus(str, PyEnum):
     FAILED = "failed"
 
 
+class ProtegaIdentity(Base):
+    """Protega identity - top-level identity container."""
+    __tablename__ = "protega_identities"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    users = relationship("User", back_populates="protega_identity")
+
+
 class User(Base):
     """Customer/user who enrolls biometrics and payment methods."""
     
@@ -40,9 +51,16 @@ class User(Base):
     phone = Column(String(20), unique=True, nullable=True, index=True)  # Added for SMS verification
     full_name = Column(String(255), nullable=False)
     stripe_customer_id = Column(String(255), unique=True, index=True)
+    
+    # Anti-fraud fields
+    protega_identity_id = Column(Integer, ForeignKey("protega_identities.id"), nullable=True, index=True)
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    card_fingerprint = Column(String(64), nullable=True, index=True)  # Stripe card fingerprint for deduplication
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
+    protega_identity = relationship("ProtegaIdentity", back_populates="users")
     biometric_templates = relationship("BiometricTemplate", back_populates="user", cascade="all, delete-orphan")
     payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
     consents = relationship("Consent", back_populates="user", cascade="all, delete-orphan")
@@ -59,6 +77,13 @@ class BiometricTemplate(Base):
     template_hash = Column(String(128), nullable=False)  # Hex-encoded hash
     salt = Column(String(64), nullable=False)  # Hex-encoded salt
     active = Column(Boolean, default=True, nullable=False, index=True)
+    
+    # Anti-fraud fields
+    device_id = Column(String(255), nullable=True, index=True)
+    enroll_ip = Column(String(45), nullable=True)  # IPv6 max length
+    finger_label = Column(String(50), nullable=True)  # e.g., "thumb", "index"
+    liveness_score = Column(Integer, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
@@ -66,6 +91,7 @@ class BiometricTemplate(Base):
 
     __table_args__ = (
         Index("idx_active_templates", "user_id", "active"),
+        Index("idx_device_enrolls", "device_id", "created_at"),
     )
 
 
@@ -161,5 +187,29 @@ class Transaction(Base):
 
     __table_args__ = (
         Index("idx_merchant_transactions", "merchant_id", "created_at"),
+    )
+
+
+class FlaggedEnroll(Base):
+    """Flagged enrollment attempts for manual review."""
+    __tablename__ = "flagged_enrolls"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=True, index=True)
+    phone = Column(String(20), nullable=True, index=True)
+    card_fingerprint = Column(String(64), nullable=True, index=True)
+    fingerprint_hash = Column(String(128), nullable=True)
+    device_id = Column(String(255), nullable=True)
+    enroll_ip = Column(String(45), nullable=True)
+    risk_score = Column(Integer, default=0, nullable=False, index=True)
+    reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved = Column(Boolean, default=False, nullable=False, index=True)
+    resolved_by = Column(String(255), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    
+    __table_args__ = (
+        Index("idx_unresolved_flags", "resolved", "created_at"),
+        Index("idx_risk_score", "risk_score", "created_at"),
     )
 

@@ -234,6 +234,29 @@ class SetDefaultPaymentMethodResponse(BaseModel):
 
 
 # ============================================================================
+# Customers Schemas
+# ============================================================================
+
+class CustomerListItem(BaseModel):
+    """Non-sensitive customer information for merchant viewing."""
+    
+    customer_id: int
+    masked_name: str
+    masked_email: Optional[str] = None
+    transaction_count: int
+    total_spent_cents: int
+    first_seen: datetime
+    last_seen: datetime
+
+
+class CustomerListResponse(BaseModel):
+    """Response for listing customers."""
+    
+    items: list[CustomerListItem]
+    total: int
+
+
+# ============================================================================
 # Health Check Schema
 # ============================================================================
 
