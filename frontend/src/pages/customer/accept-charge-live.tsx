@@ -20,8 +20,8 @@ export default function CustomerAcceptChargeLive() {
   const wsRef = useRef<WebSocket | null>(null);
   
   const apiUrl = typeof window !== 'undefined' 
-    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    : 'http://localhost:8000';
+    ? (process.env.NEXT_PUBLIC_API_URL || 'https://protega-api.fly.dev')
+    : 'https://protega-api.fly.dev';
 
   // Load initial charge data
   useEffect(() => {
