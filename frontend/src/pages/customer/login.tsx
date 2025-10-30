@@ -1,70 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { verifyBiometric, getBiometricCapabilities } from '@/lib/webauthn';
 
 export default function CustomerLogin() {
   const router = useRouter();
   const [fingerprint, setFingerprint] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [deviceType, setDeviceType] = useState('');
 
-  useEffect(() => {
-    async function checkBiometric() {
-      const capabilities = await getBiometricCapabilities();
-      setBiometricAvailable(capabilities.available);
-      setDeviceType(capabilities.deviceType);
-    }
-    checkBiometric();
-  }, []);
-
-  const handleFingerprintScan = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const storedCredential = localStorage.getItem('protega_fingerprint_credential');
-      if (!storedCredential) {
-        throw new Error('No biometric credential found. Please enroll first.');
-      }
-
-      // Verify biometric locally first
-      await verifyBiometric(storedCredential);
-      
-      // Use new biometric login endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/biometric-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fingerprint_sample: storedCredential,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Fingerprint not recognized');
-      }
-
-      const data = await response.json();
-      
-      // Store JWT token and user info
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', data.access_token);
-        localStorage.setItem('customer_id', data.user_id.toString());
-        localStorage.setItem('protega_user_id', data.user_id.toString());
-      }
-
-      // Redirect to customer profile
-      router.push(`/customer/profile`);
-    } catch (err: any) {
-      setError(err.message || 'Biometric verification failed');
-      setLoading(false);
-    }
+  // Generate test fingerprint helper
+  const generateTestFingerprint = () => {
+    const random = Math.floor(Math.random() * 10000);
+    const sample = `TEST-FINGERPRINT-${random}`;
+    setFingerprint(sample);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -73,9 +22,9 @@ export default function CustomerLogin() {
     setError('');
 
     try {
-      // Manual fingerprint entry - FOR DEVELOPMENT ONLY
+      // Fingerprint entry (SDK-based in production)
       if (!fingerprint.trim()) {
-        throw new Error('Please scan your fingerprint with Touch ID');
+        throw new Error('Please enter your fingerprint identifier');
       }
 
       // Use new biometric login endpoint
@@ -139,33 +88,36 @@ export default function CustomerLogin() {
               </div>
             )}
 
-            {biometricAvailable && (
-              <div className="mb-6">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="text-center mb-4">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6">
+                  <div className="text-6xl mb-4">👆</div>
+                  <p className="font-semibold text-gray-900 mb-3">
+                    Scan Your Fingerprint
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={fingerprint}
+                  onChange={(e) => setFingerprint(e.target.value)}
+                  placeholder="Enter fingerprint (e.g., TEST-FINGERPRINT-1234)"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                />
                 <button
                   type="button"
-                  onClick={handleFingerprintScan}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                  onClick={generateTestFingerprint}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-3 rounded-lg transition-colors"
                 >
-                  <span className="text-3xl">👆</span>
-                  <span>{loading ? 'Verifying...' : `Scan with ${deviceType}`}</span>
+                  Generate
                 </button>
               </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="text-center mb-4 text-gray-500 text-sm">
-                {biometricAvailable ? 'Or enter manually:' : 'Enter your fingerprint identifier:'}
-              </div>
-
-              <input
-                type="text"
-                value={fingerprint}
-                onChange={(e) => setFingerprint(e.target.value)}
-                placeholder={biometricAvailable ? "Manual entry..." : "Enter fingerprint (e.g., test123)"}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                required
-              />
+              <p className="text-xs text-gray-500">
+                📱 In production, this would be captured by a hardware fingerprint reader
+              </p>
 
               <button
                 type="submit"
