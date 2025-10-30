@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from protega_api.config import settings
 from protega_api.db import get_db
 from protega_api.models import User, BiometricTemplate
-from protega_api.security import hash_fingerprint, verify_template_hash
+from protega_api.adapters.hashing import verify_template_hash
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
