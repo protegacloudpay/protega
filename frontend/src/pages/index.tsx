@@ -85,30 +85,30 @@ export default function Home() {
               🏪 For Merchants
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
-              <Link href="/terminal" className="block">
+              <Link href="/merchant/charge" className="block">
                 <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 p-8">
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
                       <span className="text-3xl">💳</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-slate-900 mb-2">Payment Terminal</h3>
+                      <h3 className="text-2xl font-bold text-slate-900 mb-2">Create Charge</h3>
                       <p className="text-gray-600 mb-4 text-lg">
-                        Accept biometric payments from enrolled customers. Process transactions quickly and securely with our point-of-sale terminal.
+                        Set an amount for a customer payment. Share the charge ID with the customer to process the payment.
                       </p>
                       <div className="flex flex-wrap gap-3 mb-4">
                         <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
-                          Instant Payments
+                          Set Amount
                         </span>
                         <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
-                          Multiple Cards Support
+                          Share Charge ID
                         </span>
                         <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-sm font-semibold text-blue-700">
-                          Zero Integration
+                          Customer Pays
                         </span>
                       </div>
                       <span className="text-blue-600 font-semibold text-lg">
-                        Open Terminal →
+                        Create Charge →
                       </span>
                     </div>
                   </div>

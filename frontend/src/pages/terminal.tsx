@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { verifyBiometric, getBiometricCapabilities } from '../lib/webauthn';
 import SelectCardModal, { SelectablePaymentMethod } from '../components/SelectCardModal';
 import CardBadge from '../components/CardBadge';
 
@@ -26,25 +25,14 @@ export default function TerminalPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   
-  // Touch ID / WebAuthn state
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [deviceType, setDeviceType] = useState('');
-  
   // Payment methods state
   const [paymentMethods, setPaymentMethods] = useState<SelectablePaymentMethod[]>([]);
   const [showCardModal, setShowCardModal] = useState(false);
   const [selectedCardDetails, setSelectedCardDetails] = useState<SelectablePaymentMethod | null>(null);
   const [customerId, setCustomerId] = useState<number | null>(null);
 
-  // Check for biometric availability
+  // Load saved config
   useEffect(() => {
-    async function checkBiometric() {
-      const capabilities = await getBiometricCapabilities();
-      setBiometricAvailable(capabilities.available);
-      setDeviceType(capabilities.deviceType);
-    }
-    checkBiometric();
-    
     // Load saved config
     if (typeof window !== 'undefined') {
       const savedKey = localStorage.getItem('terminal_api_key');
@@ -351,84 +339,34 @@ export default function TerminalPage() {
               ))}
             </div>
 
-            {/* Fingerprint (simulated) */}
+            {/* Fingerprint Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fingerprint Verification
+                Customer Fingerprint
               </label>
-              
-              {/* Touch ID Available */}
-              {biometricAvailable && (
-                <div className="mb-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={fingerprint}
+                  onChange={(e) => setFingerprint(e.target.value)}
+                  placeholder="Enter fingerprint (e.g., TEST-FINGERPRINT-1234)"
+                  className="flex-1 px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                {fingerprint && paymentMethods.length === 0 && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      setLoading(true);
-                      setError('');
-                      try {
-                        // For payment verification, we just need the customer to scan their finger
-                        // The WebAuthn credential ID is already stored from enrollment
-                        const storedCredential = localStorage.getItem('protega_fingerprint_credential');
-                        if (storedCredential) {
-                          // Verify the biometric
-                          await verifyBiometric(storedCredential);
-                          setFingerprint(storedCredential);
-                          setMessage(`✅ ${deviceType} verified!`);
-                          setTimeout(() => setMessage(''), 2000);
-                        } else {
-                          setError('No biometric credential found. Please enroll first.');
-                        }
-                      } catch (err: any) {
-                        setError(err.message || 'Biometric scan failed');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
+                    onClick={() => fetchPaymentMethods(fingerprint)}
                     disabled={loading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-5 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                    className="px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors"
                   >
-                    <span className="text-3xl">👆</span>
-                    <span>Scan with {deviceType}</span>
+                    Load Cards
                   </button>
-                  <p className="text-xs text-gray-500 mt-1">
-                    ✓ Use your registered {deviceType} to verify payment
-                  </p>
-                </div>
-              )}
-              
-              {/* Manual Input Fallback */}
-              <div>
-                {biometricAvailable && (
-                  <p className="text-xs text-gray-500 mb-2">
-                    Or enter manually (for testing):
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={fingerprint}
-                    onChange={(e) => setFingerprint(e.target.value)}
-                    placeholder={biometricAvailable ? "Manual entry..." : "Scan fingerprint..."}
-                    className="flex-1 px-4 py-4 text-xl border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {fingerprint && paymentMethods.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => fetchPaymentMethods(fingerprint)}
-                      disabled={loading}
-                      className="px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors"
-                    >
-                      Load Cards
-                    </button>
-                  )}
-                </div>
-                {!biometricAvailable && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Demo: Use "test123" for enrolled users. Click "Load Cards" after entering.
-                  </p>
                 )}
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Enter the customer's fingerprint ID. In production, this would be captured by a hardware reader.
+              </p>
             </div>
 
             {/* Card Selection */}
