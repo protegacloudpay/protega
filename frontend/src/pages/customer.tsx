@@ -1,11 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { enrollUser } from '../lib/api';
-import { 
-  isPlatformAuthenticatorAvailable, 
-  registerBiometric, 
-  getBiometricCapabilities 
-} from '../lib/webauthn';
 import CardEntry from '../components/CardEntry';
 
 /**
@@ -31,58 +26,12 @@ export default function CustomerPage() {
     email: '',
     phone: '',
     fingerprint_sample: '',
+    finger_label: 'right_index',
     stripe_token: '',
   });
 
   const [enrolledUserId, setEnrolledUserId] = useState<number | null>(null);
-  
-  // Touch ID / WebAuthn state
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [deviceType, setDeviceType] = useState('');
-  const [useTouchID, setUseTouchID] = useState(false);
-  
-  // Card entry state
   const [cardSaved, setCardSaved] = useState(false);
-
-  // Check for biometric availability
-  useEffect(() => {
-    async function checkBiometric() {
-      const capabilities = await getBiometricCapabilities();
-      setBiometricAvailable(capabilities.available);
-      setDeviceType(capabilities.deviceType);
-    }
-    checkBiometric();
-  }, []);
-
-  const handleScanTouchID = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      // Prompt for Touch ID / biometric scan
-      const credentialId = await registerBiometric(
-        formData.email || 'user@example.com',
-        `${formData.first_name} ${formData.last_name}` || 'User'
-      );
-
-      // Use the credential ID as the fingerprint sample
-      setFormData({ ...formData, fingerprint_sample: credentialId });
-      setUseTouchID(true);
-      setError('');
-      
-      // Store credential for payment verification
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('protega_fingerprint_credential', credentialId);
-      }
-      
-      // Show success feedback
-      alert('✅ Biometric scan successful! Your fingerprint has been registered.');
-    } catch (err: any) {
-      setError(err.message || 'Biometric scan failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCardTokenGenerated = (token: string) => {
     setFormData({ ...formData, stripe_token: token });
@@ -107,6 +56,7 @@ export default function CustomerPage() {
         full_name: `${formData.first_name} ${formData.last_name}`,
         phone: formData.phone,
         fingerprint_sample: formData.fingerprint_sample,
+        finger_label: formData.finger_label,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
         stripe_payment_method_token: formData.stripe_token.trim(),
       };
@@ -124,7 +74,6 @@ export default function CustomerPage() {
           localStorage.setItem('customer_email', formData.email);
           localStorage.setItem('customer_phone', formData.phone);
           localStorage.setItem('customer_name', `${formData.first_name} ${formData.last_name}`);
-          localStorage.setItem('protega_used_touchid', useTouchID ? 'true' : 'false');
         }
       }
     } catch (err: any) {
@@ -348,52 +297,56 @@ export default function CustomerPage() {
               </p>
             </div>
 
-            {/* Fingerprint */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fingerprint Registration *
-              </label>
+            {/* Fingerprint Registration */}
+            <div className="border-t pt-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Fingerprint Registration</h3>
               
-              {biometricAvailable ? (
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleScanTouchID}
-                    disabled={loading || !formData.email || !formData.first_name || !formData.phone}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
-                  >
-                    <span className="text-2xl">👆</span>
-                    <span>Scan with {deviceType}</span>
-                  </button>
-                  {(!formData.email || !formData.first_name || !formData.phone) && (
-                    <p className="text-xs text-orange-600 mt-2 text-center">
-                      Please fill in your name, email, and phone number first
-                    </p>
-                  )}
-                  {useTouchID && (
-                    <p className="text-xs text-green-600 mt-2 text-center">
-                      ✅ {deviceType} scan registered successfully!
-                    </p>
-                  )}
-                  {formData.fingerprint_sample && useTouchID && (
-                    <input
-                      type="hidden"
-                      value={formData.fingerprint_sample}
-                      required
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 text-center">
-                  <p className="text-yellow-800 font-semibold mb-2">
-                    ⚠️ Biometric sensor not detected
+              {/* Finger Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Which Finger? *
+                </label>
+                <select
+                  value={formData.finger_label}
+                  onChange={(e) => setFormData({ ...formData, finger_label: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  required
+                >
+                  <option value="right_thumb">Right Thumb</option>
+                  <option value="right_index">Right Index Finger</option>
+                  <option value="right_middle">Right Middle Finger</option>
+                  <option value="left_thumb">Left Thumb</option>
+                  <option value="left_index">Left Index Finger</option>
+                  <option value="left_middle">Left Middle Finger</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 You can register up to 3 fingers. Choose your most convenient finger first.
+                </p>
+              </div>
+
+              {/* Fingerprint Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fingerprint Sample *
+                </label>
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6 text-center">
+                  <div className="text-6xl mb-4">👆</div>
+                  <p className="font-semibold text-gray-900 mb-3">
+                    Scan Your Fingerprint
                   </p>
-                  <p className="text-sm text-yellow-700">
-                    This device does not have a biometric sensor (fingerprint reader or Face ID). 
-                    Please use a device with biometric capabilities to enroll in Protega CloudPay.
+                  <input
+                    type="text"
+                    value={formData.fingerprint_sample}
+                    onChange={(e) => setFormData({ ...formData, fingerprint_sample: e.target.value })}
+                    placeholder="Place finger on scanner (e.g., SAMPLE-FP-001)"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+                    required
+                  />
+                  <p className="text-xs text-gray-600 mt-2">
+                    📱 In production, this would be captured by a hardware fingerprint reader
                   </p>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Card Info */}

@@ -101,7 +101,9 @@ export interface EnrollRequest {
   email: string;
   full_name: string;
   phone_number?: string;
+  phone?: string;  // Alternative field name
   fingerprint_sample: string;
+  finger_label?: string;
   consent_text: string;
   stripe_payment_method_token: string;
   set_default?: boolean;
