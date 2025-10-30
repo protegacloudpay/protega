@@ -120,6 +120,7 @@ export default function CustomerPage() {
         // Save for quick access
         if (typeof window !== 'undefined') {
           localStorage.setItem('protega_user_id', response.user_id.toString());
+          localStorage.setItem('customer_id', response.user_id.toString()); // Also save as customer_id for profile page
           localStorage.setItem('protega_used_touchid', useTouchID ? 'true' : 'false');
         }
       }
@@ -228,10 +229,10 @@ export default function CustomerPage() {
 
             <div className="space-y-3">
               <button
-                onClick={() => router.push(`/merchant/customers/${enrolledUserId}/methods`)}
+                onClick={() => router.push('/customer/profile')}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
               >
-                Manage Payment Cards
+                Manage My Cards
               </button>
 
               <button
