@@ -41,8 +41,7 @@ export default function CustomerPage() {
   const [deviceType, setDeviceType] = useState('');
   const [useTouchID, setUseTouchID] = useState(false);
   
-  // Card entry mode
-  const [cardEntryMode, setCardEntryMode] = useState<'manual' | 'stripe'>('manual');
+  // Card entry state
   const [cardSaved, setCardSaved] = useState(false);
 
   // Check for biometric availability
@@ -336,148 +335,72 @@ export default function CustomerPage() {
                 Fingerprint Registration *
               </label>
               
-              {/* Touch ID Available */}
-              {biometricAvailable && (
-                <div className="mb-3">
+              {biometricAvailable ? (
+                <div>
                   <button
                     type="button"
                     onClick={handleScanTouchID}
-                    disabled={loading || !formData.email || !formData.first_name}
+                    disabled={loading || !formData.email || !formData.first_name || !formData.phone}
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
                   >
                     <span className="text-2xl">👆</span>
                     <span>Scan with {deviceType}</span>
                   </button>
-                  {(!formData.email || !formData.first_name) && (
-                    <p className="text-xs text-orange-600 mt-1">
-                      💡 Fill in your name and email first
+                  {(!formData.email || !formData.first_name || !formData.phone) && (
+                    <p className="text-xs text-orange-600 mt-2 text-center">
+                      Please fill in your name, email, and phone number first
                     </p>
                   )}
                   {useTouchID && (
-                    <p className="text-xs text-green-600 mt-1">
+                    <p className="text-xs text-green-600 mt-2 text-center">
                       ✅ {deviceType} scan registered successfully!
                     </p>
                   )}
+                  {formData.fingerprint_sample && useTouchID && (
+                    <input
+                      type="hidden"
+                      value={formData.fingerprint_sample}
+                      required
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 text-center">
+                  <p className="text-yellow-800 font-semibold mb-2">
+                    ⚠️ Biometric sensor not detected
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    This device does not have a biometric sensor (fingerprint reader or Face ID). 
+                    Please use a device with biometric capabilities to enroll in Protega CloudPay.
+                  </p>
                 </div>
               )}
-              
-              {/* Manual Input Fallback */}
-              <div>
-                {biometricAvailable && (
-                  <p className="text-xs text-gray-500 mb-2">
-                    Or enter manually (for testing):
-                  </p>
-                )}
-                <input
-                  type="text"
-                  value={formData.fingerprint_sample}
-                  onChange={(e) => {
-                    setFormData({ ...formData, fingerprint_sample: e.target.value });
-                    setUseTouchID(false);
-                  }}
-                  placeholder={biometricAvailable ? "Manual entry (optional)" : "Use 'test123' for demo"}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  required
-                  readOnly={useTouchID}
-                />
-                {!biometricAvailable && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Demo Mode: Use "test123" or any text (no biometric sensor detected)
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Card Info */}
             <div className="border-t pt-6">
               <h3 className="font-semibold text-gray-900 mb-4">Payment Card Information</h3>
               
-              <div className="space-y-4">
-                {/* Card Entry Mode Toggle */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setCardEntryMode('stripe')}
-                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                      cardEntryMode === 'stripe'
-                        ? 'bg-teal-600 text-white shadow-lg'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    💳 Enter Card Details
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardEntryMode('manual')}
-                    className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
-                      cardEntryMode === 'manual'
-                        ? 'bg-teal-600 text-white shadow-lg'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    🔑 Manual Token Entry
-                  </button>
+              {!cardSaved ? (
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Enter your card details securely. Your card information is encrypted and processed directly by our payment provider. We never see your full card number.
+                  </p>
+                  <div className="relative">
+                    <CardEntry onTokenGenerated={handleCardTokenGenerated} />
+                  </div>
                 </div>
-
-                {/* Stripe Card Entry Component */}
-                {cardEntryMode === 'stripe' && (
-                  <div>
-                    {!cardSaved ? (
-                      <>
-                        <p className="text-sm text-gray-600 mb-3">
-                          Enter your card details securely using Stripe. Your card information is encrypted and never stored on our servers.
-                        </p>
-                        <div className="relative">
-                          <CardEntry onTokenGenerated={handleCardTokenGenerated} />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-                        <div className="text-5xl mb-3">✅</div>
-                        <p className="text-lg font-bold text-green-800 mb-2">
-                          Card Saved Successfully!
-                        </p>
-                        <p className="text-sm text-green-700 mb-4">
-                          Your card token: <code className="font-mono text-xs bg-white px-2 py-1 rounded border border-green-300">{formData.stripe_token}</code>
-                        </p>
-                        <p className="text-sm text-green-600">
-                          You can now complete enrollment by filling in your information above and clicking "Enroll Now"
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Manual Token Entry */}
-                {cardEntryMode === 'manual' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Enter Your Stripe Payment Token *
-                    </label>
-                    <input
-                      type="text"
-                      id="stripe_token"
-                      value={formData.stripe_token || ''}
-                      onChange={(e) => setFormData({ ...formData, stripe_token: e.target.value })}
-                      placeholder="Enter your Stripe payment method token here"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-mono text-sm"
-                      required
-                    />
-                    
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs text-blue-800 font-semibold mb-2">📝 What is this?</p>
-                      <p className="text-xs text-blue-700 mb-2">
-                        For testing: Use one of these Stripe test tokens:
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_visa' })}>pm_card_visa</code>
-                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_mastercard' })}>pm_card_mastercard</code>
-                        <code className="bg-white px-3 py-1.5 rounded border border-blue-300 text-xs font-mono cursor-pointer hover:bg-blue-50" onClick={() => setFormData({ ...formData, stripe_token: 'pm_card_amex' })}>pm_card_amex</code>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
+                  <div className="text-5xl mb-3">✅</div>
+                  <p className="text-lg font-bold text-green-800 mb-2">
+                    Card Added Successfully!
+                  </p>
+                  <p className="text-sm text-green-700">
+                    Your payment method has been securely added and is ready to use.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Error Message */}
