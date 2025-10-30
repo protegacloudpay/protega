@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from protega_api.config import settings
 from protega_api.db import get_db
 from protega_api.models import User, BiometricTemplate
-from protega_api.adapters.hashing import verify_template_hash
+from protega_api.sdk import get_fingerprint_reader
+import hashlib
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -41,33 +42,47 @@ async def biometric_login(
     Authenticate user using biometric fingerprint.
     
     This is the ONLY way to log in - no email/password allowed.
+    Uses SDK fingerprint capture for cross-device compatibility.
     """
     logger.info("Biometric login attempt")
     
-    # Normalize fingerprint sample (same as enrollment)
-    from protega_api.adapters.hardware import get_hardware_adapter
-    hardware_adapter = get_hardware_adapter()
-    normalized_sample = hardware_adapter.to_template_input(request.fingerprint_sample)
+    # Get fingerprint reader
+    reader = get_fingerprint_reader()
     
-    # Find matching fingerprint in database
-    templates = db.query(BiometricTemplate).filter(
+    # Capture fingerprint from SDK (or use provided sample)
+    if request.fingerprint_sample:
+        # Use provided sample (development mode)
+        fingerprint_sample = request.fingerprint_sample
+        logger.info("Using provided fingerprint sample (development mode)")
+    else:
+        # Capture from hardware
+        logger.info("Capturing fingerprint from hardware SDK")
+        fingerprint_sample = reader.capture_sample()
+        if not fingerprint_sample:
+            raise HTTPException(
+                status_code=400,
+                detail="Fingerprint capture failed. Please try again."
+            )
+    
+    # Hash the fingerprint for lookup
+    template_hash = reader.hash_template(fingerprint_sample)
+    logger.info(f"Looking up fingerprint with hash: {template_hash[:16]}...")
+    
+    # Find matching fingerprint in database (fast hash lookup)
+    template = db.query(BiometricTemplate).filter(
+        BiometricTemplate.template_hash == template_hash,
         BiometricTemplate.active == True
-    ).all()
+    ).first()
     
-    matched_user_id = None
-    for template in templates:
-        # Verify using the stored salt
-        if verify_template_hash(normalized_sample, template.template_hash, template.salt):
-            matched_user_id = template.user_id
-            logger.info(f"Fingerprint matched for user: {matched_user_id}")
-            break
-    
-    if not matched_user_id:
+    if not template:
         logger.warning("Biometric login failed - fingerprint not recognized")
         raise HTTPException(
             status_code=401,
             detail="Fingerprint not recognized. Please enroll first."
         )
+    
+    matched_user_id = template.user_id
+    logger.info(f"Fingerprint matched for user: {matched_user_id}")
     
     # Get user details
     user = db.query(User).filter(User.id == matched_user_id).first()

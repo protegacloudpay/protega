@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from protega_api.adapters.hashing import derive_template_hash
-from protega_api.adapters.hardware import get_hardware_adapter
 from protega_api.adapters.payments import (
     attach_payment_method_and_get_details,
     create_customer,
 )
+from protega_api.sdk import get_fingerprint_reader
 from protega_api.db import get_db
 from protega_api.models import BiometricTemplate, Consent, PaymentMethod, User, PaymentProvider
 from protega_api.schemas import EnrollRequest, EnrollResponse
@@ -110,11 +110,27 @@ def enroll_user(
         from protega_api.security_enclave import encrypt_sensitive
         import hashlib
         
-        hardware_adapter = get_hardware_adapter()
-        normalized_sample = hardware_adapter.to_template_input(request.fingerprint_sample)
+        # Get fingerprint reader (SDK or simulated)
+        reader = get_fingerprint_reader()
         
-        # Hash for duplicate detection (fast lookup, no decryption needed)
-        template_hash = hashlib.sha256(normalized_sample.encode()).hexdigest()
+        # Capture fingerprint from hardware SDK (or use provided sample for testing)
+        if request.fingerprint_sample:
+            # If sample provided, use it (for development/testing)
+            fingerprint_sample = request.fingerprint_sample
+            logger.info("Using provided fingerprint sample (development mode)")
+        else:
+            # Capture from hardware
+            logger.info("Capturing fingerprint from hardware SDK")
+            fingerprint_sample = reader.capture_sample()
+            if not fingerprint_sample:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Fingerprint capture failed. Please try again."
+                )
+        
+        # Normalize and hash the template
+        normalized_sample = reader.normalize_template(fingerprint_sample)
+        template_hash = reader.hash_template(fingerprint_sample)
         
         logger.info(f"Checking for duplicate fingerprint hash: {template_hash[:16]}...")
         
