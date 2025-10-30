@@ -85,7 +85,7 @@ export default function Home() {
               🏪 For Merchants
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
-              <Link href="/merchant/charge" className="block">
+              <Link href="/merchant/charge-live" className="block">
                 <div className="card hover:shadow-xl transition-shadow bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 p-8">
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">

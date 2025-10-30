@@ -23,7 +23,7 @@ interface PaymentMethod {
 
 export default function CustomerAcceptCharge() {
   const router = useRouter();
-  const { charge_id } = router.query;
+  const { charge_id, amount, description } = router.query;
   
   const [chargeId, setChargeId] = useState('');
   const [chargeData, setChargeData] = useState<any>(null);
@@ -36,9 +36,22 @@ export default function CustomerAcceptCharge() {
   useEffect(() => {
     if (charge_id && typeof charge_id === 'string') {
       setChargeId(charge_id);
-      loadChargeDetails(charge_id);
+      
+      // If amount/description are in URL, show them directly (from merchant live view)
+      if (amount && description) {
+        setChargeData({
+          charge_id: charge_id,
+          amount_cents: Math.round(parseFloat(amount as string) * 100),
+          description: description,
+          merchant_name: "Merchant",
+          status: "pending"
+        });
+      } else {
+        // Otherwise load from API
+        loadChargeDetails(charge_id);
+      }
     }
-  }, [charge_id]);
+  }, [charge_id, amount, description]);
 
   const loadChargeDetails = async (cid: string) => {
     setLoading(true);

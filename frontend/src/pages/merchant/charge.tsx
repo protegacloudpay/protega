@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 
@@ -18,6 +18,7 @@ export default function MerchantCharge() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [chargeCreated, setChargeCreated] = useState<any>(null);
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
   const handleCreateCharge = async (e: React.FormEvent) => {
     e.preventDefault();
