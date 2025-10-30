@@ -10,12 +10,11 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependencies first (for better caching)
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -e .
-
-# Copy source code
+# Copy everything first
 COPY . .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -e .
 
 # Expose port
 EXPOSE 8000
