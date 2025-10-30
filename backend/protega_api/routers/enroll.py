@@ -1,8 +1,10 @@
 """User enrollment endpoints."""
 
+import json
 import logging
 from typing import Annotated
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -153,6 +155,50 @@ def enroll_user(
                 )
             )
         
+        # Biometric similarity scoring - detect near-duplicates
+        from protega_api.sdk import get_fingerprint_matcher
+        
+        matcher = get_fingerprint_matcher()
+        
+        # Extract feature vector from the new fingerprint
+        new_feature_vector = matcher.extract_features(fingerprint_sample)
+        
+        # Load existing feature vectors from database
+        logger.info("Checking for near-duplicate fingerprints using similarity scoring")
+        existing_templates = db.query(BiometricTemplate).filter(
+            BiometricTemplate.active == True,
+            BiometricTemplate.feature_vector != None  # Only check those with feature vectors
+        ).all()
+        
+        existing_vectors = []
+        for template in existing_templates:
+            try:
+                vector_json = json.loads(template.feature_vector)
+                vector = np.array(vector_json, dtype=np.float32)
+                existing_vectors.append((template.id, vector))
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"Failed to parse feature vector for template {template.id}: {e}")
+                continue
+        
+        # Check for similar fingerprints
+        is_duplicate, match_info = matcher.is_duplicate(new_feature_vector, existing_vectors)
+        
+        if is_duplicate and match_info:
+            match_id, similarity_score = match_info
+            logger.error(
+                f"SIMILAR FINGERPRINT DETECTED! Similarity score: {similarity_score:.3f}, "
+                f"existing template ID: {match_id}, attempted enrollment for user: {user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "This fingerprint is too similar to an existing registered fingerprint. "
+                    f"Similarity: {similarity_score:.1%}. "
+                    "Each person can only register once per account. "
+                    "If you believe this is an error, please contact support."
+                )
+            )
+        
         # Encrypt the biometric template using Secure Enclave
         logger.info("Encrypting biometric template with Secure Enclave")
         salt_b64, encrypted_template = encrypt_sensitive(normalized_sample)
@@ -201,6 +247,9 @@ def enroll_user(
                 )
             )
         
+        # Store feature vector as JSON for similarity matching
+        feature_vector_json = json.dumps(new_feature_vector.tolist())
+        
         # Store encrypted template with Secure Enclave
         template = BiometricTemplate(
             user_id=user.id,
@@ -208,13 +257,14 @@ def enroll_user(
             salt=pbkdf2_salt,  # Legacy PBKDF2 salt
             salt_b64=salt_b64,  # NEW: Encryption salt
             encrypted_template=encrypted_template,  # NEW: AES-256-GCM encrypted
+            feature_vector=feature_vector_json,  # Biometric similarity scoring
             finger_label=request.finger_label,  # Multi-finger support
             active=True
         )
         db.add(template)
         logger.info(
             f"Stored encrypted biometric template for user: {user.id}, "
-            f"finger: {request.finger_label} (Secure Enclave)"
+            f"finger: {request.finger_label} (Secure Enclave + Similarity Scoring)"
         )
     
     except Exception as e:

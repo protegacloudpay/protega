@@ -98,6 +98,9 @@ class BiometricTemplate(Base):
     salt_b64 = Column(String, nullable=True)  # Base64-encoded salt for encryption
     encrypted_template = Column(String, nullable=True)  # AES-256-GCM encrypted template
     
+    # Biometric similarity scoring (for fraud prevention)
+    feature_vector = Column(String, nullable=True)  # JSON-encoded feature vector for similarity matching
+    
     # Active status
     active = Column(Boolean, default=True, nullable=False, index=True)
     
