@@ -50,27 +50,39 @@ def enroll_user(
         Enrollment confirmation with masked email and payment details
     """
     logger.info(f"Enrollment request for email: {request.email}, phone: {request.phone}")
+    logger.info(f"Checking for existing phone number: {request.phone}")
     
-    # Step 0: Check for duplicate phone number
+    # Step 0: Check for duplicate phone number across ALL users
     existing_user_by_phone = db.query(User).filter(User.phone == request.phone).first()
     if existing_user_by_phone:
+        logger.error(f"DUPLICATE PHONE DETECTED: Phone {request.phone} already exists for user {existing_user_by_phone.id}")
         logger.warning(f"Phone number {request.phone} already registered for user: {existing_user_by_phone.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                "This phone number is already registered to another account. "
-                "Each phone number can only be associated with one account. "
-                "Please use a different phone number or contact support."
+                f"This phone number is already registered to another account. "
+                f"Each phone number can only be associated with one account. "
+                f"Please use a different phone number or contact support."
             )
         )
     
-    # Step 1: Find or create user
+    # Step 1: Find or create user by email
     user = db.query(User).filter(User.email == request.email).first()
     
     if user:
         logger.info(f"User already exists: {user.id}")
-        # Update phone if provided
-        if request.phone:
+        # Check if this existing user already has a different phone
+        if user.phone and user.phone != request.phone:
+            logger.warning(f"User {user.id} attempting to change phone from {user.phone} to {request.phone}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"This account already has a different phone number registered. "
+                    f"Please use your original phone number or contact support."
+                )
+            )
+        # Update phone if not already set
+        if not user.phone and request.phone:
             user.phone = request.phone
     else:
         # Create new user
@@ -105,18 +117,20 @@ def enroll_user(
         from protega_api.adapters.hashing import verify_template_hash
         
         logger.info(f"Checking {len(all_existing_templates)} existing templates for duplicates")
+        logger.info(f"Normalized sample (first 50 chars): {normalized_sample[:50]}")
         
         for existing_template in all_existing_templates:
             if existing_template.user_id != user.id:
                 # Verify if this fingerprint matches any existing template
                 try:
-                    if verify_template_hash(
+                    match = verify_template_hash(
                         normalized_sample,
                         existing_template.template_hash,
                         existing_template.salt
-                    ):
-                        logger.warning(
-                            f"Duplicate fingerprint detected! Fingerprint already registered for user: {existing_template.user_id}, "
+                    )
+                    if match:
+                        logger.error(
+                            f"DUPLICATE FINGERPRINT DETECTED! Fingerprint already registered for user: {existing_template.user_id}, "
                             f"attempted enrollment for user: {user.id}"
                         )
                         raise HTTPException(
