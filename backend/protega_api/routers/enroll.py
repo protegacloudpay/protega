@@ -58,12 +58,17 @@ def enroll_user(
     
     # Phone verification check
     if normalized_phone:
-        from protega_api.otp import OTP_STORE, send_otp
+        from protega_api.otp import OTP_STORE, VERIFIED_PHONES, send_otp
         import time
         
-        # Check if OTP code is provided
-        if request.otp_code:
-            # Verify OTP
+        # Check if phone is already verified
+        is_already_verified = VERIFIED_PHONES.get(normalized_phone, False)
+        
+        if is_already_verified:
+            # Phone already verified, no need to check OTP again
+            logger.info(f"Phone {normalized_phone} already verified, skipping OTP check")
+        elif request.otp_code:
+            # OTP code provided - verify it
             otp_record = OTP_STORE.get(normalized_phone)
             if not otp_record:
                 raise HTTPException(
@@ -85,11 +90,12 @@ def enroll_user(
                     detail="Invalid verification code. Please try again."
                 )
             
-            # OTP verified - remove from store
+            # OTP verified - remove from store and mark as verified
             del OTP_STORE[normalized_phone]
+            VERIFIED_PHONES[normalized_phone] = True
             logger.info(f"Phone {normalized_phone} verified with OTP")
         else:
-            # No OTP provided - require verification
+            # No OTP provided and not verified - require verification
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Phone verification required. Please request an OTP code first using /otp/send endpoint."

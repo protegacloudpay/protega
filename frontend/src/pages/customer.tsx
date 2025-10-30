@@ -117,16 +117,20 @@ export default function CustomerPage() {
         return;
       }
 
-      const enrollData = {
+      const enrollData: any = {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
         phone: formData.phone,
-        otp_code: phoneVerified ? verificationCode : undefined,  // Include OTP verification code if verified
         fingerprint_sample: formData.fingerprint_sample,
         finger_label: formData.finger_label,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
         stripe_payment_method_token: formData.stripe_token.trim(),
       };
+
+      // Only include OTP code if phone was verified
+      if (phoneVerified && verificationCode) {
+        enrollData.otp_code = verificationCode;
+      }
 
       const response = await enrollUser(enrollData);
       

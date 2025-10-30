@@ -39,6 +39,7 @@ except ImportError:
 # In-memory OTP store for dev
 # In production, store in Redis or database with TTL
 OTP_STORE: Dict[str, tuple[str, int]] = {}  # {phone: (code, expires_at_timestamp)}
+VERIFIED_PHONES: Dict[str, bool] = {}  # {phone: True} - Track verified phones temporarily
 
 router = APIRouter(prefix="/otp", tags=["otp"])
 
@@ -140,8 +141,9 @@ async def verify_otp(data: dict, db: Annotated[Session, Depends(get_db)]):
     if code != real_code:
         raise HTTPException(status_code=400, detail="Invalid OTP code")
     
-    # OTP verified - remove from store
+    # OTP verified - remove from store and mark as verified
     del OTP_STORE[phone]
+    VERIFIED_PHONES[phone] = True
     
     # Find flagged enrollment(s) for this phone pending OTP
     flagged = db.query(FlaggedEnroll).filter(
