@@ -125,18 +125,19 @@ def attach_payment_method_and_get_details(
             }
         )
         
-        # Extract card details
+        # Extract card details including fingerprint
         card = payment_method.card
         brand = card.brand if card else "unknown"
         last4 = card.last4 if card else "****"
         exp_month = card.exp_month if card else 0
         exp_year = card.exp_year if card else 0
+        fingerprint = card.fingerprint if card else None
         
         logger.info(
-            f"Attached payment method {payment_method.id} to customer {customer_id}"
+            f"Attached payment method {payment_method.id} to customer {customer_id}, fingerprint: {fingerprint}"
         )
         
-        return payment_method.id, brand, last4, exp_month, exp_year
+        return payment_method.id, brand, last4, exp_month, exp_year, fingerprint
         
     except stripe.StripeError as e:
         logger.error(f"Failed to attach payment method: {e}")

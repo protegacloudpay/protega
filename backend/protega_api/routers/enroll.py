@@ -190,12 +190,35 @@ def enroll_user(
                 detail="Failed to create payment customer"
             )
     
-    # Step 5: Attach payment method
+    # Step 5: Check for duplicate card BEFORE attaching payment method
+    # First, attach payment method to get the card fingerprint
+    pm_id, brand, last4, exp_month, exp_year, card_fingerprint = None, None, None, None, None, None
+    
     try:
-        pm_id, brand, last4, exp_month, exp_year = attach_payment_method_and_get_details(
+        pm_id, brand, last4, exp_month, exp_year, card_fingerprint = attach_payment_method_and_get_details(
             user.stripe_customer_id,
             request.stripe_payment_method_token
         )
+        
+        # Check for duplicate card fingerprint across ALL users
+        if card_fingerprint:
+            logger.info(f"Checking for duplicate card fingerprint: {card_fingerprint}")
+            existing_user_with_card = db.query(User).filter(User.card_fingerprint == card_fingerprint).first()
+            if existing_user_with_card and existing_user_with_card.id != user.id:
+                logger.error(f"DUPLICATE CARD DETECTED: Card fingerprint {card_fingerprint} already exists for user {existing_user_with_card.id}")
+                db.rollback()  # Rollback before raising exception
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"This credit card is already registered to another account. "
+                        f"Each credit card can only be associated with one account for security reasons. "
+                        f"Please use a different payment method or contact support."
+                    )
+                )
+            
+            # Store card fingerprint on user
+            user.card_fingerprint = card_fingerprint
+            logger.info(f"Stored card fingerprint {card_fingerprint} for user: {user.id}")
         
         # Step 6: Store payment method details
         # Check if payment method already exists
