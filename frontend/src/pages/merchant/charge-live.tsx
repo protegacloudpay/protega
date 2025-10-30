@@ -1,206 +1,225 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 
 /**
- * Merchant Charge Terminal with Live Customer View
- * 
- * Shows merchant controls on the left and customer view on the right
- * All changes are live-synced
+ * Merchant Charge Terminal - Live Version
+ * Creates charges and shares URL with customers for real-time viewing
  */
 
 export default function MerchantChargeLive() {
   const [amount, setAmount] = useState('10.00');
-  const [description, setDescription] = useState('Payment for goods');
+  const [description, setDescription] = useState('');
   const [chargeId, setChargeId] = useState('');
   const [customerUrl, setCustomerUrl] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const apiUrl = typeof window !== 'undefined' 
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    : 'http://localhost:8000';
 
-  const handleAmountChange = (newAmount: string) => {
-    setAmount(newAmount);
-    // If charge ID exists, update it on the customer side
-    if (chargeId) {
-      // Could update via API here
+  const handleCreateCharge = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const amountCents = Math.round(parseFloat(amount) * 100);
+      
+      const response = await fetch(`${apiUrl}/merchant/create-charge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount_cents: amountCents,
+          description: description || 'Payment requested'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create charge');
+      }
+
+      const data = await response.json();
+      const newId = data.charge_id;
+      setChargeId(newId);
+      
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const url = `${baseUrl}/customer/accept-charge-live?charge_id=${newId}`;
+      setCustomerUrl(url);
+      
+      console.log('Charge created:', newId);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create charge');
+      console.error('Error creating charge:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const generateNewCharge = () => {
-    const newId = `CHARGE-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    setChargeId(newId);
+  const handleAmountChange = (newAmount: string) => {
+    setAmount(newAmount);
     
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    setCustomerUrl(`${baseUrl}/customer/accept-charge?charge_id=${newId}&amount=${amount}&description=${encodeURIComponent(description)}`);
+    // Auto-update charge if it exists
+    if (chargeId && !loading) {
+      updateCharge({ amount: newAmount });
+    }
+  };
+
+  const handleDescriptionChange = (newDescription: string) => {
+    setDescription(newDescription);
+    
+    // Auto-update charge if it exists
+    if (chargeId && !loading) {
+      updateCharge({ description: newDescription });
+    }
+  };
+
+  const updateCharge = async (updates: { amount?: string; description?: string }) => {
+    if (!chargeId) return;
+
+    try {
+      const payload: any = {};
+      if (updates.amount) {
+        payload.amount = updates.amount;
+      }
+      if (updates.description !== undefined) {
+        payload.description = updates.description;
+      }
+
+      const response = await fetch(`${apiUrl}/merchant/charge/${chargeId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update charge');
+      } else {
+        console.log('Charge updated:', await response.json());
+      }
+    } catch (err) {
+      console.error('Error updating charge:', err);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(customerUrl);
+    alert('Customer URL copied to clipboard!');
   };
 
   return (
     <>
       <Head>
-        <title>Live Charge Terminal</title>
+        <title>Merchant Charge Terminal</title>
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white mb-2">Live Charge Terminal</h1>
-            <p className="text-gray-400">Edit on the left, watch on the right in real-time</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 mb-6">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Charge Terminal</h1>
+              <p className="text-gray-600">Create and manage charges for customers</p>
+            </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* MERCHANT SIDE - LEFT */}
-            <div className="bg-white rounded-2xl shadow-2xl p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-3xl">🏪</span>
-                Merchant Control Panel
-              </h2>
-
-              {/* Amount Input */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount (USD) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-3 text-3xl font-bold text-gray-600">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-12 pr-4 py-4 text-4xl font-bold border-3 border-blue-500 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-transparent bg-blue-50"
-                  />
-                </div>
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
               </div>
+            )}
 
-              {/* Description */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
+            {/* Amount Input */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Amount (USD) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-3 text-3xl font-bold text-gray-600">$</span>
                 <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="What is this payment for?"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={amount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-12 pr-4 py-4 text-4xl font-bold border-3 border-blue-500 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-transparent bg-blue-50"
+                  disabled={loading}
                 />
               </div>
+            </div>
 
-              {/* Generate/Update Charge */}
-              <button
-                onClick={generateNewCharge}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg mb-4"
-              >
-                {chargeId ? 'Update Charge' : 'Create New Charge'}
-              </button>
+            {/* Description */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => handleDescriptionChange(e.target.value)}
+                placeholder="What is this payment for?"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
+              />
+            </div>
 
-              {/* Charge Info */}
-              {chargeId && (
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                  <div className="text-sm text-blue-700 mb-2">Charge ID:</div>
-                  <div className="text-2xl font-bold text-blue-900 font-mono mb-3">{chargeId}</div>
-                  <div className="text-xs text-blue-600 mb-3">
-                    Share this URL with your customer:
-                  </div>
-                  <div className="bg-white p-3 rounded border border-blue-300">
+            {/* Create Charge Button */}
+            <button
+              onClick={handleCreateCharge}
+              disabled={loading || !amount}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg mb-6"
+            >
+              {loading ? 'Creating...' : (chargeId ? 'Create New Charge' : 'Create Charge')}
+            </button>
+
+            {/* Charge Info */}
+            {chargeId && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6">
+                <h3 className="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
+                  <span className="text-2xl">✅</span>
+                  Charge Created Successfully!
+                </h3>
+                
+                <div className="mb-4">
+                  <div className="text-sm text-green-700 mb-1 font-semibold">Charge ID:</div>
+                  <div className="text-2xl font-bold text-green-900 font-mono break-all">{chargeId}</div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-sm text-green-700 mb-2 font-semibold">Customer URL:</div>
+                  <div className="bg-white p-3 rounded border border-green-300 mb-2">
                     <div className="text-xs font-mono text-gray-800 break-all">
                       {customerUrl}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* CUSTOMER SIDE - RIGHT (IFRAME/LIVE VIEW) */}
-            <div className="bg-white rounded-2xl shadow-2xl p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-3xl">👤</span>
-                Customer View (Live Preview)
-              </h2>
-
-              {chargeId ? (
-                <div className="border-4 border-dashed border-teal-400 rounded-xl p-8 bg-teal-50">
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 bg-teal-100 rounded-full mx-auto flex items-center justify-center text-4xl mb-4">
-                      💳
-                    </div>
-                    <h3 className="text-3xl font-bold text-gray-900 mb-2">
-                      Payment Request
-                    </h3>
-                    <p className="text-gray-600">
-                      Review and accept the charge
-                    </p>
-                  </div>
-
-                  {/* Charge Details */}
-                  <div className="bg-white rounded-lg p-6 mb-6">
-                    <div className="text-center mb-4">
-                      <div className="text-6xl font-bold text-gray-900 mb-2">
-                        ${amount}
-                      </div>
-                      {description && (
-                        <div className="text-lg text-gray-600">
-                          {description}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="border-t pt-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Charge ID</span>
-                        <span className="font-mono font-semibold">{chargeId}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Status</span>
-                        <span className="text-blue-600 font-semibold">Pending</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Method Selection */}
-                  <div className="bg-white rounded-lg p-4 border-2 border-teal-300 mb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="text-3xl">💳</div>
-                      <div>
-                        <div className="font-semibold text-gray-900">
-                          VISA •••• 4242
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Default Payment Method
-                        </div>
-                      </div>
-                      <div className="ml-auto text-2xl text-teal-600">✓</div>
-                    </div>
-                  </div>
-
-                  {/* Accept Button */}
-                  <button className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg">
-                    Accept & Pay
+                  <button
+                    onClick={copyToClipboard}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg"
+                  >
+                    📋 Copy URL
                   </button>
+                </div>
 
-                  <p className="text-center text-xs text-gray-500 mt-4">
-                    This is a live preview of what your customer sees
-                  </p>
+                <div className="bg-green-100 rounded-lg p-3 text-sm text-green-900 font-semibold">
+                  📱 Open this URL on another screen/device to see the customer view!
                 </div>
-              ) : (
-                <div className="border-4 border-dashed border-gray-300 rounded-xl p-12 text-center">
-                  <div className="text-6xl mb-4">👁️</div>
-                  <p className="text-gray-600 text-lg">
-                    Create a charge on the left to see the customer view here
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Instructions */}
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-bold text-blue-900 mb-2">How it works:</h3>
-            <ol className="text-sm text-blue-800 space-y-1 ml-4 list-decimal">
-              <li>Set the amount and description on the left panel</li>
-              <li>Click "Create New Charge" to generate a charge ID</li>
-              <li>The customer view updates automatically on the right</li>
-              <li>Share the charge URL with your customer</li>
-              <li>As you edit the amount/description, the customer view updates in real-time</li>
+          <div className="bg-white bg-opacity-90 rounded-xl p-6">
+            <h3 className="font-bold text-gray-900 mb-3 text-lg">📱 How to Use:</h3>
+            <ol className="text-sm text-gray-800 space-y-2 ml-4 list-decimal">
+              <li>Enter the payment amount above</li>
+              <li>(Optional) Add a description</li>
+              <li>Click "Create Charge"</li>
+              <li>Copy the Customer URL</li>
+              <li>Open it on another screen/device or browser</li>
+              <li>Edit the amount or description here - changes will sync to the customer view!</li>
             </ol>
           </div>
         </div>
@@ -208,4 +227,3 @@ export default function MerchantChargeLive() {
     </>
   );
 }
-
