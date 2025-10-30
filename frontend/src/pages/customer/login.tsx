@@ -51,9 +51,19 @@ export default function CustomerLogin() {
 
       const data = await response.json();
       
-      // Store customer ID in session
+      // Store customer ID and user info in session
       if (typeof window !== 'undefined') {
         localStorage.setItem('customer_id', data.user_id.toString());
+        localStorage.setItem('protega_user_id', data.user_id.toString());
+        if (data.email) {
+          localStorage.setItem('customer_email', data.email);
+        }
+        if (data.full_name) {
+          localStorage.setItem('customer_name', data.full_name);
+        }
+        if (data.phone) {
+          localStorage.setItem('customer_phone', data.phone);
+        }
       }
 
       // Redirect to customer profile
@@ -92,9 +102,19 @@ export default function CustomerLogin() {
 
       const data = await response.json();
       
-      // Store customer ID in session
+      // Store customer ID and user info in session
       if (typeof window !== 'undefined') {
         localStorage.setItem('customer_id', data.user_id.toString());
+        localStorage.setItem('protega_user_id', data.user_id.toString());
+        if (data.email) {
+          localStorage.setItem('customer_email', data.email);
+        }
+        if (data.full_name) {
+          localStorage.setItem('customer_name', data.full_name);
+        }
+        if (data.phone) {
+          localStorage.setItem('customer_phone', data.phone);
+        }
       }
 
       // Redirect to customer profile
