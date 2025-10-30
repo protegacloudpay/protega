@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { enrollUser, sendOTP } from '../lib/api';
+import { enrollUser, sendOTP, verifyOTP } from '../lib/api';
 import CardEntry from '../components/CardEntry';
 
 /**
@@ -37,6 +37,7 @@ export default function CustomerPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const handleCardTokenGenerated = (token: string) => {
     setFormData({ ...formData, stripe_token: token });
@@ -51,6 +52,7 @@ export default function CustomerPage() {
 
     setLoading(true);
     setError('');
+    setPhoneVerified(false); // Reset verification status
 
     try {
       const response = await sendOTP(formData.phone);
@@ -62,6 +64,27 @@ export default function CustomerPage() {
       alert(`Verification code sent to ${formData.phone}`);
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!formData.phone || !verificationCode) {
+      setError('Please enter the verification code');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await verifyOTP(formData.phone, verificationCode);
+      setPhoneVerified(true);
+      alert('✅ Phone verified successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Invalid verification code');
+      setPhoneVerified(false);
     } finally {
       setLoading(false);
     }
@@ -80,11 +103,18 @@ export default function CustomerPage() {
         return;
       }
 
+      // Validate phone verification if OTP was sent
+      if (otpSent && !phoneVerified) {
+        setError('Please verify your phone number first');
+        setLoading(false);
+        return;
+      }
+
       const enrollData = {
         email: formData.email,
         full_name: `${formData.first_name} ${formData.last_name}`,
         phone: formData.phone,
-        otp_code: verificationCode,  // Include OTP verification code
+        otp_code: phoneVerified ? verificationCode : undefined,  // Include OTP verification code if verified
         fingerprint_sample: formData.fingerprint_sample,
         finger_label: formData.finger_label,
         consent_text: 'I consent to Protega CloudPay storing my biometric data for payment authentication',
@@ -349,18 +379,35 @@ export default function CustomerPage() {
                       </p>
                     </div>
                   )}
-                  <input
-                    type="text"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="Enter 6-digit code"
-                    className="w-full px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
-                    maxLength={6}
-                    required
-                  />
-                  <p className="text-xs text-blue-700 mt-2">
-                    Check your SMS for the verification code (valid for 5 minutes)
-                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit code"
+                      className="flex-1 px-4 py-3 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl tracking-widest"
+                      maxLength={6}
+                      disabled={loading || phoneVerified}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyCode}
+                      disabled={loading || verificationCode.length !== 6 || phoneVerified}
+                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold px-6 py-3 rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      {phoneVerified ? '✓ Verified' : 'Verify'}
+                    </button>
+                  </div>
+                  {phoneVerified && (
+                    <p className="text-xs text-green-700 mt-2 text-center font-semibold">
+                      ✅ Phone number verified successfully!
+                    </p>
+                  )}
+                  {!phoneVerified && (
+                    <p className="text-xs text-blue-700 mt-2">
+                      Check your SMS for the verification code (valid for 5 minutes)
+                    </p>
+                  )}
                 </div>
               )}
             </div>
