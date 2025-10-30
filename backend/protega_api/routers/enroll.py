@@ -105,71 +105,57 @@ def enroll_user(
     db.add(consent)
     logger.info(f"Recorded consent for user: {user.id}")
     
-    # Step 3: Normalize and hash biometric template
+    # Step 3: Secure Enclave - Encrypt and hash biometric template
     try:
+        from protega_api.security_enclave import encrypt_sensitive
+        import hashlib
+        
         hardware_adapter = get_hardware_adapter()
         normalized_sample = hardware_adapter.to_template_input(request.fingerprint_sample)
         
-        # Check for duplicate fingerprints across all users BEFORE creating new hash
-        # Since each template has its own salt, we need to verify against all existing templates
-        all_existing_templates = db.query(BiometricTemplate).filter(
-            BiometricTemplate.active == True
-        ).all()
+        # Hash for duplicate detection (fast lookup, no decryption needed)
+        template_hash = hashlib.sha256(normalized_sample.encode()).hexdigest()
         
-        from protega_api.adapters.hashing import verify_template_hash
+        logger.info(f"Checking for duplicate fingerprint hash: {template_hash[:16]}...")
         
-        logger.info(f"Checking {len(all_existing_templates)} existing templates for duplicates")
-        logger.info(f"Normalized sample (first 50 chars): {normalized_sample[:50]}")
-        
-        for existing_template in all_existing_templates:
-            if existing_template.user_id != user.id:
-                # Verify if this fingerprint matches any existing template
-                try:
-                    match = verify_template_hash(
-                        normalized_sample,
-                        existing_template.template_hash,
-                        existing_template.salt
-                    )
-                    if match:
-                        logger.error(
-                            f"DUPLICATE FINGERPRINT DETECTED! Fingerprint already registered for user: {existing_template.user_id}, "
-                            f"attempted enrollment for user: {user.id}"
-                        )
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=(
-                                "This fingerprint is already registered to another account. "
-                                "Each fingerprint can only be associated with one account for security reasons. "
-                                "If you believe this is an error, please contact support."
-                            )
-                        )
-                except HTTPException:
-                    raise  # Re-raise HTTP exceptions
-                except Exception as e:
-                    logger.error(f"Error verifying template for user {existing_template.user_id}: {e}")
-        
-        # No duplicates found, proceed with creating new hash
-        template_hash, salt = derive_template_hash(normalized_sample)
-        logger.info("No duplicate fingerprints found, creating new template")
-        
-        # Check if template already exists for THIS user (user re-enrolling same finger)
+        # Check for duplicate hash (globally unique - fast check)
         existing_template = db.query(BiometricTemplate).filter(
-            BiometricTemplate.user_id == user.id,
-            BiometricTemplate.template_hash == template_hash,
-            BiometricTemplate.active == True
+            BiometricTemplate.template_hash == template_hash
         ).first()
         
         if existing_template:
-            logger.warning(f"Template already exists for user: {user.id}")
-        else:
-            template = BiometricTemplate(
-                user_id=user.id,
-                template_hash=template_hash,
-                salt=salt,
-                active=True
+            logger.error(
+                f"DUPLICATE FINGERPRINT DETECTED! Hash already exists for user: {existing_template.user_id}, "
+                f"attempted enrollment for user: {user.id}"
             )
-            db.add(template)
-            logger.info(f"Stored biometric template for user: {user.id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "This fingerprint is already registered to another account. "
+                    "Each fingerprint can only be associated with one account for security reasons. "
+                    "If you believe this is an error, please contact support."
+                )
+            )
+        
+        # Encrypt the biometric template using Secure Enclave
+        logger.info("Encrypting biometric template with Secure Enclave")
+        salt_b64, encrypted_template = encrypt_sensitive(normalized_sample)
+        
+        # Also create legacy PBKDF2 hash for backwards compatibility
+        from protega_api.adapters.hashing import derive_template_hash
+        pbkdf2_hash, pbkdf2_salt = derive_template_hash(normalized_sample)
+        
+        # Store encrypted template with Secure Enclave
+        template = BiometricTemplate(
+            user_id=user.id,
+            template_hash=template_hash,  # SHA-256 for duplicate detection
+            salt=pbkdf2_salt,  # Legacy PBKDF2 salt
+            salt_b64=salt_b64,  # NEW: Encryption salt
+            encrypted_template=encrypted_template,  # NEW: AES-256-GCM encrypted
+            active=True
+        )
+        db.add(template)
+        logger.info(f"Stored encrypted biometric template for user: {user.id} (Secure Enclave)")
     
     except Exception as e:
         logger.error(f"Failed to process biometric template: {e}")

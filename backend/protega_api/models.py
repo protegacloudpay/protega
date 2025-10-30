@@ -68,14 +68,37 @@ class User(Base):
 
 
 class BiometricTemplate(Base):
-    """Hashed biometric template (never stores raw fingerprints)."""
+    """
+    Encrypted biometric template with Secure Enclave protection.
+    
+    Security Architecture:
+    - template_hash: SHA-256 hash for duplicate detection (fast lookup)
+    - salt: Random salt for PBKDF2 key derivation
+    - salt_b64: Base64-encoded salt for AES-GCM encryption (NEW)
+    - encrypted_template: AES-256-GCM encrypted template (NEW)
+    
+    Compliance:
+    - BIPA: Informed consent required before storage
+    - GDPR: Encrypted at rest, right to deletion
+    - PCI-DSS: Isolated from payment data
+    """
     
     __tablename__ = "biometric_templates"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    template_hash = Column(String(128), nullable=False)  # Hex-encoded hash
+    
+    # Hash for duplicate detection (fast, no decryption needed)
+    template_hash = Column(String(128), nullable=False, unique=True, index=True)  # Hex-encoded hash
+    
+    # Salt for PBKDF2 hashing (legacy, for verification)
     salt = Column(String(64), nullable=False)  # Hex-encoded salt
+    
+    # Secure Enclave: Encrypted storage (NEW)
+    salt_b64 = Column(String, nullable=True)  # Base64-encoded salt for encryption
+    encrypted_template = Column(String, nullable=True)  # AES-256-GCM encrypted template
+    
+    # Active status
     active = Column(Boolean, default=True, nullable=False, index=True)
     
     # Anti-fraud fields

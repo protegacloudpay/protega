@@ -11,6 +11,7 @@ from protega_api.db import check_db_connection
 from protega_api.routers import enroll, health, merchant, pay, payment_methods, websocket, customers, auth
 from protega_api import otp
 from protega_api.routers import admin
+from protega_api import compliance
 
 # Configure logging
 logging.basicConfig(
@@ -91,6 +92,7 @@ app.include_router(customers.router)
 app.include_router(websocket.router)
 app.include_router(otp.router)
 app.include_router(admin.router)
+app.include_router(compliance.router)  # Privacy and compliance endpoints
 
 
 @app.get("/")
