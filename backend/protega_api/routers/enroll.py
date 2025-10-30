@@ -161,6 +161,46 @@ def enroll_user(
         from protega_api.adapters.hashing import derive_template_hash
         pbkdf2_hash, pbkdf2_salt = derive_template_hash(normalized_sample)
         
+        # Multi-finger support: Check existing fingerprint count
+        existing_fp_count = db.query(BiometricTemplate).filter(
+            BiometricTemplate.user_id == user.id,
+            BiometricTemplate.active == True
+        ).count()
+        
+        if existing_fp_count >= 3:
+            logger.error(
+                f"User {user.id} attempting to register more than 3 fingerprints "
+                f"(current count: {existing_fp_count})"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Maximum number of fingerprints reached. "
+                    "You can register up to 3 fingers per account for security. "
+                    f"Currently registered: {existing_fp_count}/3"
+                )
+            )
+        
+        # Check if this specific finger is already registered for this user
+        existing_finger = db.query(BiometricTemplate).filter(
+            BiometricTemplate.user_id == user.id,
+            BiometricTemplate.finger_label == request.finger_label,
+            BiometricTemplate.active == True
+        ).first()
+        
+        if existing_finger:
+            logger.warning(
+                f"User {user.id} attempting to re-register {request.finger_label} "
+                f"(existing template ID: {existing_finger.id})"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"This finger ({request.finger_label}) is already registered. "
+                    "You can only register each finger once."
+                )
+            )
+        
         # Store encrypted template with Secure Enclave
         template = BiometricTemplate(
             user_id=user.id,
@@ -168,10 +208,14 @@ def enroll_user(
             salt=pbkdf2_salt,  # Legacy PBKDF2 salt
             salt_b64=salt_b64,  # NEW: Encryption salt
             encrypted_template=encrypted_template,  # NEW: AES-256-GCM encrypted
+            finger_label=request.finger_label,  # Multi-finger support
             active=True
         )
         db.add(template)
-        logger.info(f"Stored encrypted biometric template for user: {user.id} (Secure Enclave)")
+        logger.info(
+            f"Stored encrypted biometric template for user: {user.id}, "
+            f"finger: {request.finger_label} (Secure Enclave)"
+        )
     
     except Exception as e:
         logger.error(f"Failed to process biometric template: {e}")

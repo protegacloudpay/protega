@@ -104,8 +104,11 @@ class BiometricTemplate(Base):
     # Anti-fraud fields
     device_id = Column(String(255), nullable=True, index=True)
     enroll_ip = Column(String(45), nullable=True)  # IPv6 max length
-    finger_label = Column(String(50), nullable=True)  # e.g., "thumb", "index"
+    finger_label = Column(String(50), nullable=True)  # e.g., "right_index", "left_thumb"
     liveness_score = Column(Integer, nullable=True)
+    
+    # Multi-finger support
+    last_used_at = Column(DateTime, nullable=True, index=True)  # Last successful authentication
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

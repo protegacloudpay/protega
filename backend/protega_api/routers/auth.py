@@ -81,8 +81,17 @@ async def biometric_login(
             detail="Fingerprint not recognized. Please enroll first."
         )
     
+    # Update last used timestamp for this fingerprint
+    from datetime import datetime
+    template.last_used_at = datetime.utcnow()
+    db.commit()
+    
     matched_user_id = template.user_id
-    logger.info(f"Fingerprint matched for user: {matched_user_id}")
+    logger.info(
+        f"Fingerprint matched for user: {matched_user_id}, "
+        f"finger: {template.finger_label}, "
+        f"last_used_at: {template.last_used_at}"
+    )
     
     # Get user details
     user = db.query(User).filter(User.id == matched_user_id).first()
