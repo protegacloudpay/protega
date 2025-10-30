@@ -1,5 +1,7 @@
+# Dockerfile for Protega CloudPay (FastAPI + Fly.io)
 FROM python:3.11-slim
 
+# Working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -8,16 +10,16 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application code first
-COPY . .
-
-# Install Python dependencies
+# Copy dependencies first (for better caching)
+COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 
-# Make uvicorn.sh executable
-RUN chmod +x /app/uvicorn.sh
+# Copy source code
+COPY . .
 
+# Expose port
 EXPOSE 8000
 
-CMD ["/bin/bash", "/app/uvicorn.sh"]
+# Run app with uvicorn
+CMD ["uvicorn", "protega_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

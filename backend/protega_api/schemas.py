@@ -263,7 +263,9 @@ class CustomerListResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response."""
     
-    ok: bool
-    version: str = "0.1.0"
+    status: str = "ok"
+    service: str = "Protega CloudPay API"
+    ok: bool = True
+    version: str = "2.0"
     database: str = "connected"
 
